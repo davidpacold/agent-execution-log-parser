@@ -335,7 +335,7 @@ addEventListener('fetch', event => {
 	<div class="container">
 	  <header>
 		<h1>Log File Parser</h1>
-		<p class="description">Paste your JSON log file below to analyze and visualize its structure and execution flow.</p>
+		<p class="description">Paste your Airia Agent log file below to analyze and visualize its structure and execution flow.</p>
 	  </header>
 	  
 	  <div class="card">

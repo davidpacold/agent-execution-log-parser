@@ -1,3 +1,7 @@
 name = "agent-execution-log-parser"
 main = "src/index.js"
 compatibility_date = "2024-02-26"
+
+# wrangler.toml (wrangler v3.88.0^)
+[observability.logs]
+enabled = true
