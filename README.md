@@ -12,7 +12,7 @@ A web-based tool to parse and visualize agent execution logs hosted on Cloudflar
 
 ## Demo
 
-Access the live demo: [Agent Execution Log Parser](https://agent-execution-log-parser.pages.dev) (link will be active after deployment)
+Access the live demo: [Agent Execution Log Parser](https://agent-execution-log-parser.david-pacold.workers.dev)
 
 ## How It Works
 
