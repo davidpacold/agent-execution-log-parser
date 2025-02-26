@@ -56,6 +56,7 @@ addEventListener('fetch', event => {
 	  },
 	  steps: [],
 	  errors: [],
+	  mermaidChart: generateMermaidChart(logData)
 	};
 	
 	// Parse steps
@@ -107,6 +108,99 @@ addEventListener('fetch', event => {
 	return result;
   }
   
+  function generateMermaidChart(logData) {
+	// Default chart if no steps are found
+	let mermaidDefinition = `
+  flowchart TD
+	Start[Execution Start] --> End[Execution End]
+	style Start fill:#b7e1cd,stroke:#82c7a5
+	style End fill:#f4c7c3,stroke:#e6b8b4
+	`;
+	
+	if (logData.StepsExecutionContext) {
+	  // Gather all steps and sort by start time
+	  const steps = [];
+	  for (const stepId in logData.StepsExecutionContext) {
+		const step = logData.StepsExecutionContext[stepId];
+		steps.push({
+		  id: step.StepId,
+		  type: step.StepType,
+		  success: step.Success,
+		  startedAt: step.TimeTrackingData?.startedAt || '',
+		  label: getStepLabel(step),
+		  hasError: !step.Success && step.ExceptionMessage
+		});
+	  }
+	  
+	  // Sort steps by start time
+	  steps.sort((a, b) => {
+		return new Date(a.startedAt) - new Date(b.startedAt);
+	  });
+	  
+	  // Generate Mermaid chart
+	  mermaidDefinition = `
+  flowchart TD
+	Start[Execution Start] --> ${steps[0]?.id || 'End'}
+	`;
+	  
+	  // Add steps to chart
+	  for (let i = 0; i < steps.length; i++) {
+		const step = steps[i];
+		const nextStep = steps[i + 1];
+		
+		const nodeStyle = step.success ? 
+		  (step.type === 'InputStep' ? 'fill:#d0e0e3,stroke:#a2c4c9' : 
+		   step.type === 'AIOperation' ? 'fill:#d9d2e9,stroke:#b4a7d6' : 
+		   'fill:#fff2cc,stroke:#ffd966') : 
+		  'fill:#f4c7c3,stroke:#e6b8b4';
+		
+		// Add the step node
+		mermaidDefinition += `
+	${step.id}["${step.label}"]
+	style ${step.id} ${nodeStyle}
+	`;
+		
+		// Add connection to next step or end
+		if (nextStep) {
+		  mermaidDefinition += `
+	${step.id} --> ${nextStep.id}
+	`;
+		} else {
+		  mermaidDefinition += `
+	${step.id} --> End[Execution End]
+	`;
+		}
+	  }
+	  
+	  // Add styling for Start and End nodes
+	  mermaidDefinition += `
+	style Start fill:#b7e1cd,stroke:#82c7a5
+	style End fill:${logData.Success ? '#b7e1cd,stroke:#82c7a5' : '#f4c7c3,stroke:#e6b8b4'}
+	`;
+	}
+	
+	return mermaidDefinition;
+  }
+  
+  function getStepLabel(step) {
+	let label = `${step.StepType}`;
+	
+	if (step.StepType === 'InputStep' && step.Result?.Value) {
+	  // Truncate long inputs
+	  const input = step.Result.Value;
+	  label += `: "${input.length > 25 ? input.substring(0, 22) + '...' : input}"`;
+	} else if (step.StepType === 'AIOperation' && step.DebugInformation?.modelDisplayName) {
+	  label += `: ${step.DebugInformation.modelDisplayName}`;
+	}
+	
+	// Add error indicator
+	if (!step.Success && step.ExceptionMessage) {
+	  label += ' ❌';
+	}
+	
+	return label;
+  }
+  
   function formatDateTime(dateTimeStr) {
 	if (!dateTimeStr) return 'N/A';
 	try {
@@ -123,7 +217,8 @@ addEventListener('fetch', event => {
   <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Log File Parser</title>
+	<title>Airia Agent Log Parser</title>
+	<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
 	<style>
 	  :root {
 		--primary-color: #2563eb;
@@ -320,6 +415,40 @@ addEventListener('fetch', event => {
 		margin-left: 0.5rem;
 	  }
 	  
+	  .tab-container {
+		margin-top: 1.5rem;
+	  }
+	  
+	  .tabs {
+		display: flex;
+		border-bottom: 1px solid var(--border-color);
+		margin-bottom: 1rem;
+	  }
+	  
+	  .tab {
+		padding: 0.75rem 1.5rem;
+		cursor: pointer;
+		border-bottom: 2px solid transparent;
+		font-weight: 500;
+	  }
+	  
+	  .tab.active {
+		border-bottom: 2px solid var(--primary-color);
+		color: var(--primary-color);
+	  }
+	  
+	  .tab-content {
+		display: none;
+	  }
+	  
+	  .tab-content.active {
+		display: block;
+	  }
+	  
+	  .mermaid-container {
+		overflow-x: auto;
+	  }
+	  
 	  @media (max-width: 640px) {
 		.detail-row {
 		  flex-direction: column;
@@ -334,7 +463,7 @@ addEventListener('fetch', event => {
   <body>
 	<div class="container">
 	  <header>
-		<h1>Log File Parser</h1>
+		<h1>Airia Agent Log Parser</h1>
 		<p class="description">Paste your Airia Agent log file below to analyze and visualize its structure and execution flow.</p>
 	  </header>
 	  
@@ -356,25 +485,49 @@ addEventListener('fetch', event => {
 		  <div class="error-summary" id="error-summary"></div>
 		</div>
 		
-		<div class="steps-container">
-		  <div class="steps-header">
-			<h2>Execution Steps</h2>
-			<button id="expandAllBtn">Expand All</button>
+		<div class="tab-container">
+		  <div class="tabs">
+			<div class="tab active" data-tab="flow-chart">Flow Chart</div>
+			<div class="tab" data-tab="step-details">Step Details</div>
+			<div class="tab" data-tab="raw-data">Raw Data</div>
 		  </div>
-		  <div id="steps-list"></div>
-		</div>
-		
-		<div style="margin-top: 1.5rem;">
-		  <h2>Processed Data
-			<button id="copyJsonBtn" class="copy-json-btn">Copy JSON</button>
-		  </h2>
-		  <pre id="processedJson" style="background: #f3f4f6; padding: 1rem; border-radius: 0.375rem; overflow: auto;"></pre>
+		  
+		  <div class="tab-content active" id="flow-chart">
+			<h3>Execution Flow</h3>
+			<div class="mermaid-container">
+			  <div class="mermaid" id="mermaid-chart"></div>
+			</div>
+		  </div>
+		  
+		  <div class="tab-content" id="step-details">
+			<div class="steps-header">
+			  <h3>Execution Steps</h3>
+			  <button id="expandAllBtn">Expand All</button>
+			</div>
+			<div id="steps-list"></div>
+		  </div>
+		  
+		  <div class="tab-content" id="raw-data">
+			<h3>Processed Data <button id="copyJsonBtn" class="copy-json-btn">Copy JSON</button></h3>
+			<pre id="processedJson" style="background: #f3f4f6; padding: 1rem; border-radius: 0.375rem; overflow: auto;"></pre>
+		  </div>
 		</div>
 	  </div>
 	</div>
 	
 	<script>
 	  document.addEventListener('DOMContentLoaded', () => {
+		// Initialize Mermaid
+		mermaid.initialize({
+		  startOnLoad: true,
+		  theme: 'neutral',
+		  flowchart: {
+			useMaxWidth: true,
+			htmlLabels: true,
+			curve: 'basis'
+		  }
+		});
+		
 		const jsonInput = document.getElementById('jsonInput');
 		const parseBtn = document.getElementById('parseBtn');
 		const loadSampleBtn = document.getElementById('loadSampleBtn');
@@ -382,13 +535,29 @@ addEventListener('fetch', event => {
 		const overviewMetricsDiv = document.getElementById('overview-metrics');
 		const stepsListDiv = document.getElementById('steps-list');
 		const processedJsonPre = document.getElementById('processedJson');
+		const mermaidChartDiv = document.getElementById('mermaid-chart');
 		const errorSummaryDiv = document.getElementById('error-summary');
 		const errorsSection = document.getElementById('errors-section');
 		const expandAllBtn = document.getElementById('expandAllBtn');
 		const copyJsonBtn = document.getElementById('copyJsonBtn');
+		const tabs = document.querySelectorAll('.tab');
 		
 		let allExpanded = false;
 		let parsedResult = null;
+		
+		// Tab switching
+		tabs.forEach(tab => {
+		  tab.addEventListener('click', () => {
+			// Remove active class from all tabs and content
+			document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+			document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+			
+			// Add active class to clicked tab and corresponding content
+			const tabId = tab.getAttribute('data-tab');
+			tab.classList.add('active');
+			document.getElementById(tabId).classList.add('active');
+		  });
+		});
 		
 		// Load sample log
 		loadSampleBtn.addEventListener('click', () => {
@@ -562,6 +731,7 @@ addEventListener('fetch', event => {
 			},
 			steps: [],
 			errors: [],
+			mermaidChart: generateMermaidChart(logData)
 		  };
 		  
 		  // Parse steps
@@ -613,130 +783,57 @@ addEventListener('fetch', event => {
 		  return result;
 		}
 		
-		function formatDateTime(dateTimeStr) {
-		  if (!dateTimeStr) return 'N/A';
-		  try {
-			const date = new Date(dateTimeStr);
-			return date.toLocaleString();
-		  } catch (e) {
-			return dateTimeStr;
-		  }
-		}
-		
-		function displayResults(data) {
-		  // Display overview metrics
-		  overviewMetricsDiv.innerHTML = '';
-		  for (const [key, value] of Object.entries(data.overview)) {
-			overviewMetricsDiv.innerHTML += \`
-			  <div class="metric">
-				<div class="metric-label">\${formatLabel(key)}</div>
-				<div class="metric-value \${key === 'success' ? (value ? 'success' : 'error') : ''}">\${value === true ? '✓' : value === false ? '✗' : value}</div>
-			  </div>
-			\`;
-		  }
+		function generateMermaidChart(logData) {
+		  // Default chart if no steps are found
+		  let mermaidDefinition = 'flowchart TD\\n  Start[Execution Start] --> End[Execution End]\\n  style Start fill:#b7e1cd,stroke:#82c7a5\\n  style End fill:#f4c7c3,stroke:#e6b8b4';
 		  
-		  // Display errors if any
-		  if (data.errors && data.errors.length > 0) {
-			errorsSection.style.display = 'block';
-			errorSummaryDiv.innerHTML = \`
-			  <h3>Execution Errors (\${data.errors.length})</h3>
-			  <ul>
-				\${data.errors.map(error => \`
-				  <li>
-					<strong>\${error.stepType} (\${error.stepId.substring(0, 8)}...):</strong>
-					<div>\${error.message}</div>
-				  </li>
-				\`).join('')}
-			  </ul>
-			\`;
-		  } else {
-			errorsSection.style.display = 'none';
-		  }
-		  
-		  // Display steps
-		  stepsListDiv.innerHTML = '';
-		  data.steps.forEach((step, index) => {
-			const stepHtml = \`
-			  <div class="step" data-step-id="\${step.id}">
-				<div class="step-header" onclick="toggleStep(this)">
-				  <div>
-					<span class="step-type">\${step.type}</span>
-					<span class="step-id">ID: \${step.id.substring(0, 8)}...</span>
-				  </div>
-				  <div class="\${step.success ? 'success' : 'error'}">
-					\${step.success ? '✓ Success' : '✗ Failed'}
-				  </div>
-				</div>
-				<div class="step-body">
-				  <div class="detail-row">
-					<div class="detail-label">Step ID:</div>
-					<div class="detail-value">\${step.id}</div>
-				  </div>
-				  <div class="detail-row">
-					<div class="detail-label">Type:</div>
-					<div class="detail-value">\${step.type}</div>
-				  </div>
-				  <div class="detail-row">
-					<div class="detail-label">Duration:</div>
-					<div class="detail-value">\${step.duration}</div>
-				  </div>
-				  <div class="detail-row">
-					<div class="detail-label">Started:</div>
-					<div class="detail-value">\${step.startedAt}</div>
-				  </div>
-				  <div class="detail-row">
-					<div class="detail-label">Finished:</div>
-					<div class="detail-value">\${step.finishedAt}</div>
-				  </div>
-				  \${step.type === 'InputStep' ? \`
-					<div class="detail-row">
-					  <div class="detail-label">Input:</div>
-					  <div class="detail-value">\${step.input || 'N/A'}</div>
-					</div>
-				  \` : ''}
-				  \${step.type === 'AIOperation' ? \`
-					<div class="detail-row">
-					  <div class="detail-label">Model:</div>
-					  <div class="detail-value">\${step.modelName}</div>
-					</div>
-					<div class="detail-row">
-					  <div class="detail-label">Provider:</div>
-					  <div class="detail-value">\${step.modelProvider}</div>
-					</div>
-					<div class="detail-row">
-					  <div class="detail-label">Tokens:</div>
-					  <div class="detail-value">Input: \${step.tokens.input}, Output: \${step.tokens.output}, Total: \${step.tokens.total}</div>
-					</div>
-				  \` : ''}
-				  \${step.error ? \`
-					<div class="detail-row">
-					  <div class="detail-label">Error:</div>
-					  <div class="detail-value error">\${step.error}</div>
-					</div>
-				  \` : ''}
-				</div>
-			  </div>
-			\`;
+		  if (logData.StepsExecutionContext) {
+			// Gather all steps and sort by start time
+			const steps = [];
+			for (const stepId in logData.StepsExecutionContext) {
+			  const step = logData.StepsExecutionContext[stepId];
+			  steps.push({
+				id: step.StepId,
+				type: step.StepType,
+				success: step.Success,
+				startedAt: step.TimeTrackingData?.startedAt || '',
+				label: getStepLabel(step),
+				hasError: !step.Success && step.ExceptionMessage
+			  });
+			}
 			
-			stepsListDiv.innerHTML += stepHtml;
-		  });
-		  
-		  // Display processed JSON
-		  processedJsonPre.textContent = JSON.stringify(data, null, 2);
-		}
-		
-		function formatLabel(key) {
-		  return key.replace(/([A-Z])/g, ' $1')
-			.replace(/^./, str => str.toUpperCase());
-		}
-		
-		// Expose toggleStep to global scope
-		window.toggleStep = function(element) {
-		  const stepBody = element.nextElementSibling;
-		  stepBody.classList.toggle('active');
-		};
-	  });
-	</script>
-  </body>
-  </html>`;
-  }
+			// Sort steps by start time
+			steps.sort((a, b) => {
+			  return new Date(a.startedAt) - new Date(b.startedAt);
+			});
+			
+			// Generate Mermaid chart
+			mermaidDefinition = 'flowchart TD\\n  Start[Execution Start] --> ' + (steps[0]?.id || 'End');
+			
+			// Add steps to chart
+			for (let i = 0; i < steps.length; i++) {
+			  const step = steps[i];
+			  const nextStep = steps[i + 1];
+			  
+			  const nodeStyle = step.success ? 
+				(step.type === 'InputStep' ? 'fill:#d0e0e3,stroke:#a2c4c9' : 
+				 step.type === 'AIOperation' ? 'fill:#d9d2e9,stroke:#b4a7d6' : 
+				 'fill:#fff2cc,stroke:#ffd966') : 
+				'fill:#f4c7c3,stroke:#e6b8b4';
+			  
+			  // Add the step node with shortened ID for display
+			  const shortId = step.id.substring(0, 8);
+			  mermaidDefinition += '\\n  ' + step.id + '["' + step.label + '"]';
+			  mermaidDefinition += '\\n  style ' + step.id + ' ' + nodeStyle;
+			  
+			  // Add connection to next step or end
+			  if (nextStep) {
+				mermaidDefinition += '\\n  ' + step.id + ' --> ' + nextStep.id;
+			  } else {
+				mermaidDefinition += '\\n  ' + step.id + ' --> End[Execution End]';
+			  }
+			}
+			
+			// Add styling for Start and End nodes
+			mermaidDefinition += '\\n  style Start fill:#b7e1cd,stroke:#82c7a5';
+			mermaidDefinition += '\\n  style End fill:' + (logData.Success ? '#b7e1cd,stroke:#82c7a5' : '#f4c7c3,stroke:#e6b8b4');
