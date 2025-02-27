@@ -397,13 +397,22 @@ document.addEventListener("DOMContentLoaded", function() {
           stepsHtml += "<tr><th>API Calls:</th><td class=\\"api-calls\\">";
           
           step.apiTools.forEach((tool, idx) => {
+            const toolId = "api-" + step.id.replace(/[^a-zA-Z0-9]/g, "-") + "-" + idx;
+            
             stepsHtml += "<div class=\\"api-call\\">";
             
-            // Tool name and request info
-            stepsHtml += "<div class=\\"api-header\\">";
+            // Tool name and request info with collapse toggle
+            stepsHtml += "<div class=\\"api-header\\" data-bs-toggle=\\"collapse\\" data-bs-target=\\"#" + toolId + "\\" style=\\"cursor: pointer;\\">";
+            stepsHtml += "<div class=\\"d-flex justify-content-between w-100 align-items-center\\">";
             stepsHtml += "<span class=\\"api-name\\">" + tool.name + "</span>";
-            stepsHtml += "<span class=\\"api-method\\">" + tool.method + "</span>";
+            stepsHtml += "<div>";
+            stepsHtml += "<span class=\\"api-method mx-2\\">" + tool.method + "</span>";
+            stepsHtml += "<span class=\\"collapse-indicator\\">▼</span>";
+            stepsHtml += "</div></div></div>";
             stepsHtml += "</div>";
+            
+            // Collapsible content
+            stepsHtml += "<div id=\\"" + toolId + "\\" class=\\"collapse show\\">";
             
             // URL
             if (tool.url) {
@@ -451,30 +460,186 @@ document.addEventListener("DOMContentLoaded", function() {
               stepsHtml += "<div class=\\"api-error\\">" + tool.error + "</div>";
             }
             
+            // First detect the tool type for custom handling
+            let toolType = "generic";
+            
+            if (name.includes("Bing") || name.includes("Search")) {
+              toolType = "search";
+            } else if (name.includes("Jira") || tool.url?.includes("atlassian")) {
+              toolType = "jira";
+            } else if (name.includes("Dataframe") || name.includes("Database") || name.includes("SQL")) {
+              toolType = "data";
+            } else if (name.includes("File") || name.includes("Document")) {
+              toolType = "file";
+            }
+            
             if (tool.responseContent) {
+              // Try to parse response as JSON, but don't fail if it's not
+              let resultObj = null;
+              let isValidJson = false;
+              
               try {
-                // Try to format JSON response
-                let formattedResponse = tool.responseContent;
-                
-                if (typeof formattedResponse === 'string' && 
-                   (formattedResponse.trim().startsWith('{') || formattedResponse.trim().startsWith('['))) {
-                  formattedResponse = JSON.stringify(JSON.parse(formattedResponse), null, 2);
+                if (typeof tool.responseContent === 'string' && 
+                   (tool.responseContent.trim().startsWith('{') || tool.responseContent.trim().startsWith('['))) {
+                  resultObj = JSON.parse(tool.responseContent);
+                  isValidJson = true;
+                } else if (typeof tool.responseContent === 'object') {
+                  resultObj = tool.responseContent;
+                  isValidJson = true;
                 }
-                
-                formattedResponse = formattedResponse.split("\\\\").join("\\\\\\\\");
-                formattedResponse = formattedResponse.split("\\n").join("<br>");
-                
-                stepsHtml += "<pre class=\\"api-response-content\\">" + formattedResponse + "</pre>";
               } catch (e) {
-                // If not valid JSON, show as is
-                stepsHtml += "<div class=\\"api-response-content\\">" + tool.responseContent + "</div>";
+                // Not valid JSON, will handle as text
+              }
+              
+              // Format based on tool type
+              if (toolType === "search" && isValidJson && resultObj.webPages && resultObj.webPages.value) {
+                // Bing search results
+                stepsHtml += "<div class=\\"search-results\\" style=\\"max-height: 350px; overflow-y: auto;\\">";
+                  
+                resultObj.webPages.value.forEach((page, i) => {
+                  const pageUrl = page.url ? page.url.split("\\"").join("&quot;") : "";
+                  const pageName = page.name ? page.name.split("<").join("&lt;").split(">").join("&gt;") : "";
+                  const pageSnippet = page.snippet ? page.snippet.split("<").join("&lt;").split(">").join("&gt;") : "";
+                  
+                  stepsHtml += "<div class=\\"search-result\\">" +
+                    "<div class=\\"search-result-title\\"><a href=\\"" + pageUrl + "\\" target=\\"_blank\\">" + pageName + "</a></div>" +
+                    "<div class=\\"search-result-url\\">" + pageUrl + "</div>" +
+                    "<div class=\\"search-result-snippet\\">" + pageSnippet + "</div>" +
+                    "</div>";
+                });
+                
+                stepsHtml += "</div>";
+              } 
+              else if (toolType === "jira" && isValidJson && resultObj.values && Array.isArray(resultObj.values)) {
+                // Jira projects or issues
+                if (resultObj.values.length > 0 && resultObj.values[0].key) {
+                  // Projects list
+                  stepsHtml += "<div class=\\"jira-results\\" style=\\"max-height: 350px; overflow-y: auto;\\">";
+                  
+                  stepsHtml += "<table class=\\"table table-sm jira-table\\">" +
+                    "<thead><tr>" +
+                    "<th>Key</th><th>Name</th><th>Type</th><th>Style</th>" +
+                    "</tr></thead><tbody>";
+                  
+                  resultObj.values.forEach(project => {
+                    const key = project.key || "";
+                    const name = project.name || "";
+                    const type = project.projectTypeKey || "";
+                    const style = project.style || "";
+                    
+                    stepsHtml += "<tr>" +
+                      "<td>" + key + "</td>" +
+                      "<td>" + name + "</td>" +
+                      "<td>" + type + "</td>" +
+                      "<td>" + style + "</td>" +
+                      "</tr>";
+                  });
+                  
+                  stepsHtml += "</tbody></table>";
+                  stepsHtml += "<div class=\\"jira-meta\\">Total: " + (resultObj.total || resultObj.values.length) + "</div>";
+                  stepsHtml += "</div>";
+                } 
+                else if (resultObj.values.length > 0 && resultObj.values[0].id) {
+                  // Issues list
+                  stepsHtml += "<div class=\\"jira-results\\" style=\\"max-height: 350px; overflow-y: auto;\\">";
+                  
+                  stepsHtml += "<table class=\\"table table-sm jira-table\\">" +
+                    "<thead><tr>" +
+                    "<th>Key</th><th>Summary</th><th>Status</th><th>Priority</th>" +
+                    "</tr></thead><tbody>";
+                  
+                  resultObj.values.forEach(issue => {
+                    const key = issue.key || "";
+                    const summary = issue.fields?.summary || "";
+                    const status = issue.fields?.status?.name || "";
+                    const priority = issue.fields?.priority?.name || "";
+                    
+                    stepsHtml += "<tr>" +
+                      "<td>" + key + "</td>" +
+                      "<td>" + summary + "</td>" +
+                      "<td>" + status + "</td>" +
+                      "<td>" + priority + "</td>" +
+                      "</tr>";
+                  });
+                  
+                  stepsHtml += "</tbody></table>";
+                  stepsHtml += "<div class=\\"jira-meta\\">Total: " + (resultObj.total || resultObj.values.length) + "</div>";
+                  stepsHtml += "</div>";
+                }
+                else {
+                  // Generic Jira content, fallback to JSON
+                  const safeJson = JSON.stringify(resultObj, null, 2).split("\\\\").join("\\\\\\\\");
+                  stepsHtml += "<pre class=\\"api-response-content\\">" + safeJson + "</pre>";
+                }
+              }
+              else if (toolType === "data" && isValidJson) {
+                // Data response with potential table format
+                if (Array.isArray(resultObj) && resultObj.length > 0) {
+                  // Try to render as table if it seems like a dataset
+                  stepsHtml += "<div class=\\"data-results\\" style=\\"max-height: 350px; overflow-y: auto;\\">";
+                  
+                  // Get all possible columns from the data
+                  const columns = new Set();
+                  resultObj.forEach(row => {
+                    if (typeof row === 'object' && row !== null) {
+                      Object.keys(row).forEach(key => columns.add(key));
+                    }
+                  });
+                  
+                  if (columns.size > 0) {
+                    stepsHtml += "<table class=\\"table table-sm data-table\\">" +
+                      "<thead><tr>";
+                    
+                    columns.forEach(col => {
+                      stepsHtml += "<th>" + col + "</th>";
+                    });
+                    
+                    stepsHtml += "</tr></thead><tbody>";
+                    
+                    resultObj.forEach(row => {
+                      stepsHtml += "<tr>";
+                      
+                      columns.forEach(col => {
+                        const value = row[col] !== undefined ? row[col] : "";
+                        stepsHtml += "<td>" + value + "</td>";
+                      });
+                      
+                      stepsHtml += "</tr>";
+                    });
+                    
+                    stepsHtml += "</tbody></table>";
+                    stepsHtml += "<div class=\\"data-meta\\">Rows: " + resultObj.length + "</div>";
+                  } else {
+                    // Not tabular data, show as JSON
+                    const safeJson = JSON.stringify(resultObj, null, 2).split("\\\\").join("\\\\\\\\");
+                    stepsHtml += "<pre class=\\"api-response-content\\">" + safeJson + "</pre>";
+                  }
+                  
+                  stepsHtml += "</div>";
+                } else {
+                  // Not an array, show as JSON
+                  const safeJson = JSON.stringify(resultObj, null, 2).split("\\\\").join("\\\\\\\\");
+                  stepsHtml += "<pre class=\\"api-response-content\\">" + safeJson + "</pre>";
+                }
+              }
+              else if (isValidJson) {
+                // Generic JSON formatting for all other tool types
+                const safeJson = JSON.stringify(resultObj, null, 2).split("\\\\").join("\\\\\\\\");
+                stepsHtml += "<pre class=\\"api-response-content\\">" + safeJson + "</pre>";
+              } 
+              else {
+                // Plain text for non-JSON responses
+                let formattedResponse = tool.responseContent;
+                formattedResponse = String(formattedResponse).split("\\\\").join("\\\\\\\\");
+                formattedResponse = formattedResponse.split("\\n").join("<br>");
+                stepsHtml += "<div class=\\"api-response-content\\">" + formattedResponse + "</div>";
               }
             } else {
               stepsHtml += "<div class=\\"api-no-response\\">No response content</div>";
             }
             
             stepsHtml += "</div>";
-            stepsHtml += "</div>";
+            stepsHtml += "</div></div>";
           });
           
           stepsHtml += "</td></tr>";
@@ -563,11 +728,19 @@ document.addEventListener("DOMContentLoaded", function() {
               // Keep as is if not JSON
             }
             
+            const toolId = "tool-" + step.id.replace(/[^a-zA-Z0-9]/g, "-") + "-" + index;
+            
+            // Make each tool call collapsible
             stepsHtml += "<div class=\\"tool-call\\">" +
-              "<div class=\\"tool-header\\">" +
+              "<div class=\\"tool-header\\" data-bs-toggle=\\"collapse\\" data-bs-target=\\"#" + toolId + "\\" style=\\"cursor: pointer;\\">" +
+              "<div class=\\"d-flex justify-content-between w-100 align-items-center\\">" +
               "<span class=\\"tool-name\\">" + name + "</span>" +
-              (id ? "<span class=\\"tool-id\\">ID: " + id + "</span>" : "") +
+              "<div>" +
+              (id ? "<span class=\\"tool-id me-2\\">ID: " + id + "</span>" : "") +
+              "<span class=\\"collapse-indicator\\">▼</span>" +
+              "</div></div>" +
               "</div>" +
+              "<div id=\\"" + toolId + "\\" class=\\"collapse show\\">" +
               "<div class=\\"tool-body\\">";
             
             if (args) {
@@ -582,47 +755,15 @@ document.addEventListener("DOMContentLoaded", function() {
               displayResult = displayResult.split("\\\\").join("\\\\\\\\");
             }
             
-            // For Bing search results, try to extract and prettify the JSON
-            if (result && name.includes("Bing Search")) {
-              try {
-                const resultObj = typeof result === "object" ? result : JSON.parse(result);
-                
-                if (resultObj.webPages && resultObj.webPages.value) {
-                  // Format search results in a more readable way
-                  stepsHtml += "<div class=\\"tool-result-label\\"><strong>Search Results:</strong></div>" +
-                    "<div class=\\"search-results\\" style=\\"max-height: 350px; overflow-y: auto;\\">";
-                  
-                  resultObj.webPages.value.forEach((page, i) => {
-                    const pageUrl = page.url ? page.url.split("\\"").join("&quot;") : "";
-                    const pageName = page.name ? page.name.split("<").join("&lt;").split(">").join("&gt;") : "";
-                    const pageSnippet = page.snippet ? page.snippet.split("<").join("&lt;").split(">").join("&gt;") : "";
-                    
-                    stepsHtml += "<div class=\\"search-result\\">" +
-                      "<div class=\\"search-result-title\\"><a href=\\"" + pageUrl + "\\" target=\\"_blank\\">" + pageName + "</a></div>" +
-                      "<div class=\\"search-result-url\\">" + pageUrl + "</div>" +
-                      "<div class=\\"search-result-snippet\\">" + pageSnippet + "</div>" +
-                      "</div>";
-                  });
-                  
-                  stepsHtml += "</div>";
-                } else {
-                  // Fallback to showing raw JSON - safely stringified
-                  const safeJson = JSON.stringify(resultObj, null, 2).split("\\\\").join("\\\\\\\\");
-                  stepsHtml += "<div class=\\"tool-result-label\\"><strong>Result:</strong></div>" +
-                    "<div class=\\"tool-result\\">" + safeJson + "</div>";
-                }
-              } catch (e) {
-                // If parsing fails, show raw result (sanitized)
-                stepsHtml += "<div class=\\"tool-result-label\\"><strong>Result:</strong></div>" +
-                  "<div class=\\"tool-result\\">" + displayResult + "</div>";
-              }
-            } else if (result) {
+            // The tool detection and display is now handled by our generic system.
+            // The specific handling for different tool types is inside the response section.
+            if (result) {
               // For other tool results
               stepsHtml += "<div class=\\"tool-result-label\\"><strong>Result:</strong></div>" +
                 "<div class=\\"tool-result\\">" + displayResult + "</div>";
             }
             
-            stepsHtml += "</div></div>";
+            stepsHtml += "</div></div></div>";
           });
           
           stepsHtml += "</div></td></tr>";
@@ -839,6 +980,26 @@ document.addEventListener("DOMContentLoaded", function() {
                 method: tool.RequestMethod || "GET",
                 statusCode: tool.ResponseStatusCode || 0,
                 responseContent: tool.ResponseContent || "",
+                responseHeaders: tool.ResponseHeaders || {},
+                requestHeaders: tool.RequestHeaders || {},
+                error: tool.ErrorMessage || ""
+              };
+            });
+          }
+          
+          // If there are no tools in DebugInformation but there are standalone tools
+          // (this format is used by some API integrations like JIRA)
+          else if (step.tools && step.tools.length > 0) {
+            stepInfo.apiTools = step.tools.map(tool => {
+              return {
+                name: tool.ToolName || tool.name || "Unknown Tool",
+                parameters: tool.ToolParameters || tool.RequestParameters || {},
+                url: tool.RequestUrl || "",
+                method: tool.RequestMethod || "GET",
+                statusCode: tool.ResponseStatusCode || 0,
+                responseContent: tool.ResponseContent || "",
+                responseHeaders: tool.ResponseHeaders || {},
+                requestHeaders: tool.RequestHeaders || {},
                 error: tool.ErrorMessage || ""
               };
             });

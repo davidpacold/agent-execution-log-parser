@@ -432,5 +432,101 @@ export function getStyles() {
       font-style: italic;
       padding: 0.5rem;
     }
+    
+    /* Jira styling */
+    .jira-results {
+      margin: 0.5rem 0;
+    }
+    
+    .jira-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    
+    .jira-table th {
+      background-color: #f3f4f6;
+      font-weight: bold;
+      text-align: left;
+      padding: 0.5rem;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .jira-table td {
+      padding: 0.5rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .jira-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    
+    .jira-table tr:hover {
+      background-color: #e5e7eb;
+    }
+    
+    .jira-meta {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: #4b5563;
+      text-align: right;
+      font-style: italic;
+    }
+    
+    /* Data tables styling */
+    .data-results {
+      margin: 0.5rem 0;
+    }
+    
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      font-family: monospace;
+    }
+    
+    .data-table th {
+      background-color: #f3f4f6;
+      font-weight: bold;
+      text-align: left;
+      padding: 0.5rem;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .data-table td {
+      padding: 0.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .data-table td:hover {
+      white-space: normal;
+      word-break: break-all;
+    }
+    
+    .data-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    
+    .data-meta {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: #4b5563;
+      text-align: right;
+      font-style: italic;
+    }
+    
+    /* Collapse indicators */
+    .collapse-indicator {
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+    }
+    
+    .collapsed .collapse-indicator {
+      transform: rotate(-90deg);
+    }
   `;
 }
