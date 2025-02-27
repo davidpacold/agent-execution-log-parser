@@ -292,5 +292,145 @@ export function getStyles() {
       border-left: 3px solid #0ea5e9;
       font-family: monospace;
     }
+    
+    .code-content {
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      background-color: #f8f9fa;
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      border-left: 3px solid #6366f1;
+      font-family: monospace;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .python-io {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .io-item {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      overflow: hidden;
+    }
+    
+    .io-type {
+      background-color: #f3f4f6;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+      font-weight: bold;
+      color: #4b5563;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .io-value {
+      padding: 0.5rem;
+      white-space: pre-wrap;
+      background-color: #ffffff;
+      font-family: monospace;
+    }
+    
+    /* API Tool styles */
+    .api-calls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .api-call {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      background-color: #ffffff;
+    }
+    
+    .api-header {
+      background-color: #f3f4f6;
+      padding: 0.5rem 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .api-name {
+      font-weight: bold;
+      color: #1f2937;
+    }
+    
+    .api-method {
+      font-size: 0.75rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      background-color: #4b5563;
+      color: white;
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.25rem;
+    }
+    
+    .api-url {
+      padding: 0.5rem 0.75rem;
+      font-family: monospace;
+      font-size: 0.875rem;
+      background-color: #f8fafc;
+      border-bottom: 1px solid #e5e7eb;
+      word-break: break-all;
+    }
+    
+    .api-section {
+      margin-top: 0.5rem;
+      padding: 0.5rem 0.75rem;
+    }
+    
+    .api-section-title {
+      font-weight: bold;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+      color: #4b5563;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .api-status {
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.25rem;
+      background-color: #e5e7eb;
+      color: #4b5563;
+    }
+    
+    .api-parameters, .api-response-content {
+      background-color: #f8fafc;
+      padding: 0.75rem;
+      border-radius: 0.25rem;
+      border-left: 3px solid #6366f1;
+      overflow-x: auto;
+    }
+    
+    .api-parameter-content, .api-response-content {
+      margin: 0;
+      font-family: monospace;
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+    }
+    
+    .api-error {
+      color: #ef4444;
+      font-weight: bold;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      background-color: #fee2e2;
+      border-radius: 0.25rem;
+    }
+    
+    .api-no-response {
+      color: #6b7280;
+      font-style: italic;
+      padding: 0.5rem;
+    }
   `;
 }

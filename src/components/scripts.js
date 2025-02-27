@@ -290,6 +290,197 @@ document.addEventListener("DOMContentLoaded", function() {
         }
       }
       
+      if (step.type === "PythonStep") {
+        // Display Python inputs
+        if (step.pythonInputs && step.pythonInputs.length > 0) {
+          stepsHtml += "<tr><th>Inputs:</th><td class=\\"python-io\\">";
+          
+          step.pythonInputs.forEach((input, idx) => {
+            stepsHtml += "<div class=\\"io-item\\">";
+            stepsHtml += "<div class=\\"io-type\\">" + input.type + "</div>";
+            
+            let safeValue = input.value || "";
+            if (safeValue) {
+              // Try to format JSON if it looks like JSON
+              try {
+                if (typeof safeValue === 'string' && 
+                   (safeValue.trim().startsWith('{') || safeValue.trim().startsWith('['))) {
+                  safeValue = JSON.stringify(JSON.parse(safeValue), null, 2);
+                }
+              } catch (e) {
+                // If parsing fails, use as is
+              }
+              
+              safeValue = safeValue.split("\\\\").join("\\\\\\\\");
+              safeValue = safeValue.split("\\n").join("<br>");
+            } else {
+              safeValue = "<em>Empty</em>";
+            }
+            
+            stepsHtml += "<div class=\\"io-value\\">" + safeValue + "</div>";
+            stepsHtml += "</div>";
+          });
+          
+          stepsHtml += "</td></tr>";
+        }
+        
+        // Display Python output (Result)
+        if (step.pythonOutput) {
+          stepsHtml += "<tr><th>Output:</th><td class=\\"python-io\\">";
+          
+          stepsHtml += "<div class=\\"io-item\\">";
+          stepsHtml += "<div class=\\"io-type\\">" + step.pythonOutput.type + "</div>";
+          
+          let safeValue = step.pythonOutput.value || "";
+          if (safeValue) {
+            // Try to format JSON if it looks like JSON
+            try {
+              if (typeof safeValue === 'string' && 
+                 (safeValue.trim().startsWith('{') || safeValue.trim().startsWith('['))) {
+                safeValue = JSON.stringify(JSON.parse(safeValue), null, 2);
+              }
+            } catch (e) {
+              // If parsing fails, use as is
+            }
+            
+            safeValue = safeValue.split("\\\\").join("\\\\\\\\");
+            safeValue = safeValue.split("\\n").join("<br>");
+          } else {
+            safeValue = "<em>Empty</em>";
+          }
+          
+          stepsHtml += "<div class=\\"io-value\\">" + safeValue + "</div>";
+          stepsHtml += "</div>";
+          
+          stepsHtml += "</td></tr>";
+        }
+        
+        // Display additional outputs if available
+        if (step.additionalOutputs && step.additionalOutputs.length > 0) {
+          stepsHtml += "<tr><th>Additional Outputs:</th><td class=\\"python-io\\">";
+          
+          step.additionalOutputs.forEach((output, idx) => {
+            stepsHtml += "<div class=\\"io-item\\">";
+            stepsHtml += "<div class=\\"io-type\\">" + output.type + "</div>";
+            
+            let safeValue = output.value || "";
+            if (safeValue) {
+              // Try to format JSON if it looks like JSON
+              try {
+                if (typeof safeValue === 'string' && 
+                   (safeValue.trim().startsWith('{') || safeValue.trim().startsWith('['))) {
+                  safeValue = JSON.stringify(JSON.parse(safeValue), null, 2);
+                }
+              } catch (e) {
+                // If parsing fails, use as is
+              }
+              
+              safeValue = safeValue.split("\\\\").join("\\\\\\\\");
+              safeValue = safeValue.split("\\n").join("<br>");
+            } else {
+              safeValue = "<em>Empty</em>";
+            }
+            
+            stepsHtml += "<div class=\\"io-value\\">" + safeValue + "</div>";
+            stepsHtml += "</div>";
+          });
+          
+          stepsHtml += "</td></tr>";
+        }
+      }
+      
+      if (step.type === "APIToolStep" || step.type === "WebAPIPluginStep") {
+        // Display API Tool information
+        stepsHtml += "<tr><th>Tool Name:</th><td>" + step.apiToolName + "</td></tr>";
+        
+        if (step.apiTools && step.apiTools.length > 0) {
+          stepsHtml += "<tr><th>API Calls:</th><td class=\\"api-calls\\">";
+          
+          step.apiTools.forEach((tool, idx) => {
+            stepsHtml += "<div class=\\"api-call\\">";
+            
+            // Tool name and request info
+            stepsHtml += "<div class=\\"api-header\\">";
+            stepsHtml += "<span class=\\"api-name\\">" + tool.name + "</span>";
+            stepsHtml += "<span class=\\"api-method\\">" + tool.method + "</span>";
+            stepsHtml += "</div>";
+            
+            // URL
+            if (tool.url) {
+              stepsHtml += "<div class=\\"api-url\\">" + tool.url + "</div>";
+            }
+            
+            // Parameters
+            if (tool.parameters && Object.keys(tool.parameters).length > 0) {
+              stepsHtml += "<div class=\\"api-section\\">";
+              stepsHtml += "<div class=\\"api-section-title\\">Parameters:</div>";
+              stepsHtml += "<div class=\\"api-parameters\\">";
+              
+              try {
+                let paramStr = "";
+                if (typeof tool.parameters === 'object') {
+                  // Hide auth tokens with asterisks
+                  const safeParams = JSON.parse(JSON.stringify(tool.parameters));
+                  if (safeParams.Authorization) safeParams.Authorization = "****";
+                  if (safeParams.authorization) safeParams.authorization = "****";
+                  if (safeParams.token) safeParams.token = "****";
+                  
+                  paramStr = JSON.stringify(safeParams, null, 2);
+                } else {
+                  paramStr = tool.parameters;
+                }
+                
+                paramStr = paramStr.split("\\\\").join("\\\\\\\\");
+                stepsHtml += "<pre class=\\"api-parameter-content\\">" + paramStr + "</pre>";
+              } catch (e) {
+                stepsHtml += "<pre class=\\"api-parameter-content\\">" + 
+                  (typeof tool.parameters === 'string' ? tool.parameters : JSON.stringify(tool.parameters)) + 
+                  "</pre>";
+              }
+              
+              stepsHtml += "</div>";
+              stepsHtml += "</div>";
+            }
+            
+            // Response section
+            stepsHtml += "<div class=\\"api-section\\">";
+            stepsHtml += "<div class=\\"api-section-title\\">Response: <span class=\\"api-status\\">" + 
+              (tool.statusCode ? "Status " + tool.statusCode : "No status code") + "</span></div>";
+            
+            if (tool.error) {
+              stepsHtml += "<div class=\\"api-error\\">" + tool.error + "</div>";
+            }
+            
+            if (tool.responseContent) {
+              try {
+                // Try to format JSON response
+                let formattedResponse = tool.responseContent;
+                
+                if (typeof formattedResponse === 'string' && 
+                   (formattedResponse.trim().startsWith('{') || formattedResponse.trim().startsWith('['))) {
+                  formattedResponse = JSON.stringify(JSON.parse(formattedResponse), null, 2);
+                }
+                
+                formattedResponse = formattedResponse.split("\\\\").join("\\\\\\\\");
+                formattedResponse = formattedResponse.split("\\n").join("<br>");
+                
+                stepsHtml += "<pre class=\\"api-response-content\\">" + formattedResponse + "</pre>";
+              } catch (e) {
+                // If not valid JSON, show as is
+                stepsHtml += "<div class=\\"api-response-content\\">" + tool.responseContent + "</div>";
+              }
+            } else {
+              stepsHtml += "<div class=\\"api-no-response\\">No response content</div>";
+            }
+            
+            stepsHtml += "</div>";
+            stepsHtml += "</div>";
+          });
+          
+          stepsHtml += "</td></tr>";
+        }
+      }
+      
       if (step.type === "AIOperation") {
         stepsHtml += 
           "<tr><th>Model:</th><td>" + step.modelName + "</td></tr>" +
@@ -606,6 +797,51 @@ document.addEventListener("DOMContentLoaded", function() {
             stepInfo.memoryValue = input?.Value || "";
             stepInfo.memoryType = input?.$type || "";
             stepInfo.memoryOp = "store";
+          }
+        } else if (step.StepType === "PythonStep") {
+          // Handle Python steps
+          // Result is the output of the Python execution
+          stepInfo.pythonOutput = {
+            type: step.Result?.$type || "python",
+            value: step.Result?.Value || ""
+          };
+          
+          // If there are inputs, capture them
+          if (step.Input && step.Input.length > 0) {
+            stepInfo.pythonInputs = step.Input.map(input => {
+              return {
+                type: input.$type || "unknown",
+                value: input.Value || ""
+              };
+            });
+          }
+          
+          // Also capture additional outputs if available
+          if (step.Output && step.Output.length > 0) {
+            stepInfo.additionalOutputs = step.Output.map(out => {
+              return {
+                type: out.$type || "unknown",
+                value: out.Value || ""
+              };
+            });
+          }
+        } else if (step.StepType === "APIToolStep" || step.StepType === "WebAPIPluginStep") {
+          // Handle API tool steps
+          stepInfo.apiToolName = step.DebugInformation?.toolName || "Unknown API Tool";
+          
+          // Process the API parameters
+          if (step.DebugInformation?.tools && step.DebugInformation.tools.length > 0) {
+            stepInfo.apiTools = step.DebugInformation.tools.map(tool => {
+              return {
+                name: tool.ToolName || tool.name || "Unknown Tool",
+                parameters: tool.ToolParameters || tool.RequestParameters || {},
+                url: tool.RequestUrl || "",
+                method: tool.RequestMethod || "GET",
+                statusCode: tool.ResponseStatusCode || 0,
+                responseContent: tool.ResponseContent || "",
+                error: tool.ErrorMessage || ""
+              };
+            });
           }
         } else if (step.StepType === "AIOperation") {
           stepInfo.modelName = step.DebugInformation?.modelDisplayName || step.DebugInformation?.modelName || "N/A";
