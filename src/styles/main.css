@@ -1,12 +1,4 @@
 /**
- * CSS for the log parser UI
- */
-
-// Read the CSS file inline since we're running in a Cloudflare Worker environment
-// where we don't have direct file system access
-export function getStyles() {
-  return `
-/**
  * Main stylesheet for log parser UI
  */
 
@@ -452,6 +444,4 @@ h1 {
   .card-body {
     padding: 15px;
   }
-}
-  `;
 }

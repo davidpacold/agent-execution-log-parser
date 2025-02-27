@@ -10,7 +10,7 @@
  */
 
 import { renderHTML } from './components/template.js';
-import { corsHeaders, parseLogData, formatDateTime } from './components/utils.js';
+import { corsHeaders, handleOptions, parseLogData } from './components/utils.js';
 
 // Event handler for incoming requests
 export default {
@@ -28,9 +28,7 @@ export default {
     
     // Handle CORS preflight requests
     if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        headers: corsHeaders
-      });
+      return handleOptions(request);
     }
 
     // Handle POST requests with log data

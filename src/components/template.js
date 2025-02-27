@@ -42,12 +42,6 @@ export function renderHTML() {
           <input class="form-control" type="file" id="logFile">
         </div>
         <button id="parseBtn" class="btn btn-primary">Parse Log</button>
-        <div id="loadingIndicator" class="mt-2 hidden">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
-          Parsing log data...
-        </div>
       </div>
     </div>
     
@@ -105,7 +99,7 @@ export function renderHTML() {
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-  <script type="text/javascript">
+  <script>
 ${getScripts()}
   </script>
 </body>
