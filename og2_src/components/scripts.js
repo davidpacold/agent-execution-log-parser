@@ -2,12 +2,10 @@
  * JavaScript for the log parser UI
  */
 
-import { parseLogData, formatDateTime } from './utils.js';
-
 export function getScripts() {
   return `
 // Debug indicator to see if our script is loading properly
-console.log("Log parser script v1.0.0 starting");
+console.log("Log parser script starting");
 
 document.addEventListener("DOMContentLoaded", function() {
   console.log("DOM Content Loaded");
@@ -21,9 +19,7 @@ document.addEventListener("DOMContentLoaded", function() {
   
   for (const id of requiredElements) {
     const element = document.getElementById(id);
-    if (!element) {
-      console.error(\`Required element \${id} not found!\`);
-    }
+    console.log(\`Element \${id} exists: \${!!element}\`);
   }
   const logInput = document.getElementById("logInput");
   const logFile = document.getElementById("logFile");
@@ -74,35 +70,8 @@ document.addEventListener("DOMContentLoaded", function() {
         const data = JSON.parse(logData);
         
         console.log("Processing log data");
-        
-        // Check if data contains tool calls with TotalBytesSent/TotalBytesReceived
-        if (data.StepsExecutionContext) {
-          for (const stepId in data.StepsExecutionContext) {
-            const step = data.StepsExecutionContext[stepId];
-            if (step.DebugInformation && step.DebugInformation.tools) {
-              for (const tool of step.DebugInformation.tools) {
-                if (tool.TotalBytesSent || tool.TotalBytesReceived || tool.DurationMilliseconds) {
-                  console.log("Found tool with metrics:", {
-                    name: tool.ToolName || tool.name || "Unknown",
-                    sent: tool.TotalBytesSent,
-                    received: tool.TotalBytesReceived,
-                    duration: tool.DurationMilliseconds
-                  });
-                }
-              }
-            }
-          }
-        }
-        
-        // Use our parsing function from utils module
-        try {
-          // If we're running in the browser, the parseLogData function from utils won't be available
-          // So we'll use the client-side version
-          parsedResult = parseLogClient(data);
-        } catch (e) {
-          console.error("Error parsing log:", e);
-          alert("Error parsing log data: " + e.message);
-        }
+        // Use our server-side parsing function (adapted for client-side)
+        parsedResult = parseLogClient(data);
         
         console.log("Displaying results");
         // Display overview metrics
@@ -438,40 +407,16 @@ document.addEventListener("DOMContentLoaded", function() {
             stepsHtml += "<span class=\\"api-name\\">" + tool.name + "</span>";
             stepsHtml += "<div>";
             stepsHtml += "<span class=\\"api-method mx-2\\">" + tool.method + "</span>";
-            if (tool.durationMs) {
-              stepsHtml += "<span class=\\"text-muted me-2\\" style=\\"font-size: 0.8rem;\\">" + (tool.durationMs/1000).toFixed(1) + "s</span>";
-            }
             stepsHtml += "<span class=\\"collapse-indicator\\">▼</span>";
             stepsHtml += "</div></div></div>";
             stepsHtml += "</div>";
             
             // Collapsible content
-            stepsHtml += "<div id=\\"" + toolId + "\\" class=\\"collapse\\">";
+            stepsHtml += "<div id=\\"" + toolId + "\\" class=\\"collapse show\\">";
             
-            // URL and summary info - make URL more prominent
+            // URL
             if (tool.url) {
-              stepsHtml += "<div class=\\"api-url\\" style=\\"background-color: #ebf5ff; font-weight: bold;\\"><strong>URL:</strong> " + tool.url + "</div>";
-            }
-            
-            // Add request metrics summary
-            if (tool.totalBytesSent || tool.totalBytesReceived || tool.durationMs) {
-              stepsHtml += "<div class=\\"api-metrics\\" style=\\"font-size: 0.8rem; color: #6c757d; padding: 4px 8px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;\\">";
-              
-              if (tool.durationMs) {
-                stepsHtml += "<span class=\\"me-3\\">⏱️ " + (tool.durationMs/1000).toFixed(2) + "s</span>";
-              }
-              
-              if (tool.totalBytesSent) {
-                const sent = tool.totalBytesSent > 1024 ? (tool.totalBytesSent/1024).toFixed(1) + " KB" : tool.totalBytesSent + " B";
-                stepsHtml += "<span class=\\"me-3\\">📤 " + sent + "</span>";
-              }
-              
-              if (tool.totalBytesReceived) {
-                const received = tool.totalBytesReceived > 1024 ? (tool.totalBytesReceived/1024).toFixed(1) + " KB" : tool.totalBytesReceived + " B";
-                stepsHtml += "<span>📥 " + received + "</span>";
-              }
-              
-              stepsHtml += "</div>";
+              stepsHtml += "<div class=\\"api-url\\">" + tool.url + "</div>";
             }
             
             // Parameters
@@ -503,33 +448,6 @@ document.addEventListener("DOMContentLoaded", function() {
               }
               
               stepsHtml += "</div>";
-              stepsHtml += "</div>";
-            }
-            
-            // Request content if available
-            if (tool.requestContent) {
-              stepsHtml += "<div class=\\"api-section\\">";
-              stepsHtml += "<div class=\\"api-section-title\\">Request Body:</div>";
-              
-              try {
-                let contentStr = "";
-                // Try to parse and pretty print if it's valid JSON
-                if (typeof tool.requestContent === 'string' && 
-                    (tool.requestContent.trim().startsWith('{') || tool.requestContent.trim().startsWith('['))) {
-                  contentStr = JSON.stringify(JSON.parse(tool.requestContent), null, 2);
-                } else if (typeof tool.requestContent === 'object') {
-                  contentStr = JSON.stringify(tool.requestContent, null, 2);
-                } else {
-                  contentStr = String(tool.requestContent);
-                }
-                
-                contentStr = contentStr.split("\\\\").join("\\\\\\\\");
-                stepsHtml += "<pre class=\\"api-parameter-content\\" style=\\"background-color: #f5f5f5;\\">" + contentStr + "</pre>";
-              } catch (e) {
-                stepsHtml += "<pre class=\\"api-parameter-content\\" style=\\"background-color: #f5f5f5;\\">" + 
-                  String(tool.requestContent) + "</pre>";
-              }
-              
               stepsHtml += "</div>";
             }
             
@@ -812,7 +730,7 @@ document.addEventListener("DOMContentLoaded", function() {
             
             const toolId = "tool-" + step.id.replace(/[^a-zA-Z0-9]/g, "-") + "-" + index;
             
-            // Make each tool call collapsible (collapsed by default)
+            // Make each tool call collapsible
             stepsHtml += "<div class=\\"tool-call\\">" +
               "<div class=\\"tool-header\\" data-bs-toggle=\\"collapse\\" data-bs-target=\\"#" + toolId + "\\" style=\\"cursor: pointer;\\">" +
               "<div class=\\"d-flex justify-content-between w-100 align-items-center\\">" +
@@ -822,7 +740,7 @@ document.addEventListener("DOMContentLoaded", function() {
               "<span class=\\"collapse-indicator\\">▼</span>" +
               "</div></div>" +
               "</div>" +
-              "<div id=\\"" + toolId + "\\" class=\\"collapse\\">" +
+              "<div id=\\"" + toolId + "\\" class=\\"collapse show\\">" +
               "<div class=\\"tool-body\\">";
             
             if (args) {
@@ -835,11 +753,6 @@ document.addEventListener("DOMContentLoaded", function() {
             if (typeof displayResult === "string") {
               // Use string split/join instead of regex to avoid syntax errors
               displayResult = displayResult.split("\\\\").join("\\\\\\\\");
-            }
-            
-            // Add request URL if available
-            if (tool.requestUrl) {
-              stepsHtml += "<div class=\\"tool-url\\" style=\\"margin-bottom: 8px; font-family: monospace; background-color: #f5f5f5; padding: 4px 8px; border-left: 3px solid #2563eb;\\"><strong>URL:</strong> " + tool.requestUrl + "</div>";
             }
             
             // The tool detection and display is now handled by our generic system.
@@ -948,238 +861,258 @@ document.addEventListener("DOMContentLoaded", function() {
   
   // Client-side log parsing function
   function parseLogClient(logData) {
-    // Reuse the same parsing logic as the server-side
-    try {
-      // Find input and output steps for summary
-      let userInput = '';
-      let finalOutput = '';
-      let inputStepIds = [];
-      let outputStepIds = [];
-      
-      if (logData.StepsExecutionContext) {
-        // First, identify input and output steps
-        for (const stepId in logData.StepsExecutionContext) {
-          const step = logData.StepsExecutionContext[stepId];
-          if (step.StepType === 'InputStep') {
-            inputStepIds.push(stepId);
-            if (step.Result?.Value) {
-              userInput = step.Result.Value;
-            }
-          } else if (step.StepType === 'OutputStep') {
-            outputStepIds.push(stepId);
-            // We'll find the output value later after sorting
+    // Find input and output steps for summary
+    let userInput = "";
+    let finalOutput = "";
+    let inputStepIds = [];
+    let outputStepIds = [];
+    
+    if (logData.StepsExecutionContext) {
+      // First, identify input and output steps
+      for (const stepId in logData.StepsExecutionContext) {
+        const step = logData.StepsExecutionContext[stepId];
+        if (step.StepType === "InputStep") {
+          inputStepIds.push(stepId);
+          if (step.Result?.Value) {
+            userInput = step.Result.Value;
           }
+        } else if (step.StepType === "OutputStep") {
+          outputStepIds.push(stepId);
+          // We'll find the output value later after sorting
         }
       }
-      
-      const result = {
-        overview: {
-          success: logData.Success,
-          executionId: logData.ExecutionId || 'N/A',
-          userId: logData.UserId || 'N/A',
-          projectId: logData.ProjectId || 'N/A',
-          duration: logData.TimeTrackingData?.duration || 'N/A',
-          startedAt: formatDateTime(logData.TimeTrackingData?.startedAt),
-          finishedAt: formatDateTime(logData.TimeTrackingData?.finishedAt),
-        },
-        summary: {
-          userInput: userInput,
-          finalOutput: finalOutput,
-        },
-        steps: [],
-        errors: [],
-      };
-      
-      // Parse steps
-      if (logData.StepsExecutionContext) {
-        for (const stepId in logData.StepsExecutionContext) {
-          const step = logData.StepsExecutionContext[stepId];
-          
-          const stepInfo = {
-            id: step.StepId,
-            type: step.StepType,
-            success: step.Success,
-            duration: step.TimeTrackingData?.duration || 'N/A',
-            startedAt: formatDateTime(step.TimeTrackingData?.startedAt),
-            finishedAt: formatDateTime(step.TimeTrackingData?.finishedAt),
+    }
+    
+    const result = {
+      overview: {
+        success: logData.Success,
+        executionId: logData.ExecutionId || "N/A",
+        userId: logData.UserId || "N/A",
+        projectId: logData.ProjectId || "N/A",
+        duration: logData.TimeTrackingData?.duration || "N/A",
+        startedAt: formatDateTime(logData.TimeTrackingData?.startedAt),
+        finishedAt: formatDateTime(logData.TimeTrackingData?.finishedAt),
+      },
+      summary: {
+        userInput: userInput,
+        finalOutput: finalOutput,
+      },
+      steps: [],
+      errors: [],
+    };
+    
+    // Parse steps
+    if (logData.StepsExecutionContext) {
+      for (const stepId in logData.StepsExecutionContext) {
+        const step = logData.StepsExecutionContext[stepId];
+        
+        const stepInfo = {
+          id: step.StepId,
+          type: step.StepType,
+          success: step.Success,
+          duration: step.TimeTrackingData?.duration || "N/A",
+          startedAt: formatDateTime(step.TimeTrackingData?.startedAt),
+          finishedAt: formatDateTime(step.TimeTrackingData?.finishedAt),
+        };
+        
+        // Add step-specific data
+        if (step.StepType === "InputStep") {
+          stepInfo.input = step.Result?.Value || "";
+        } else if (step.StepType === "OutputStep") {
+          // For output steps, try to get the value from input array
+          // This is because output steps typically receive their value from a previous step
+          if (step.Input && step.Input.length > 0) {
+            const outputValue = step.Input[0]?.Value;
+            stepInfo.output = outputValue || "";
+          }
+        } else if (step.StepType === "MemoryLoadStep") {
+          stepInfo.memoryKey = step.Result?.Key || "";
+          stepInfo.memoryValue = step.Result?.Value || "";
+          stepInfo.memoryType = step.Result?.$type || "";
+          stepInfo.memoryOp = "load";
+        } else if (step.StepType === "MemoryStoreStep") {
+          // For store steps, information is typically in the Input
+          if (step.Input && step.Input.length > 0) {
+            const input = step.Input[0];
+            stepInfo.memoryKey = input?.Key || "";
+            stepInfo.memoryValue = input?.Value || "";
+            stepInfo.memoryType = input?.$type || "";
+            stepInfo.memoryOp = "store";
+          }
+        } else if (step.StepType === "PythonStep") {
+          // Handle Python steps
+          // Result is the output of the Python execution
+          stepInfo.pythonOutput = {
+            type: step.Result?.$type || "python",
+            value: step.Result?.Value || ""
           };
           
-          // Add step-specific data based on step type
-          if (step.StepType === 'InputStep') {
-            stepInfo.input = step.Result?.Value || '';
-          } else if (step.StepType === 'OutputStep') {
-            if (step.Input && step.Input.length > 0) {
-              stepInfo.output = step.Input[0]?.Value || '';
-            }
-          } else if (step.StepType === 'MemoryLoadStep') {
-            stepInfo.memoryKey = step.Result?.Key || '';
-            stepInfo.memoryValue = step.Result?.Value || '';
-            stepInfo.memoryType = step.Result?.$type || '';
-            stepInfo.memoryOp = 'load';
-          } else if (step.StepType === 'MemoryStoreStep') {
-            if (step.Input && step.Input.length > 0) {
-              const input = step.Input[0];
-              stepInfo.memoryKey = input?.Key || '';
-              stepInfo.memoryValue = input?.Value || '';
-              stepInfo.memoryType = input?.$type || '';
-              stepInfo.memoryOp = 'store';
-            }
-          } else if (step.StepType === 'PythonStep') {
-            stepInfo.pythonOutput = {
-              type: step.Result?.$type || 'python',
-              value: step.Result?.Value || ''
-            };
-            
-            if (step.Input && step.Input.length > 0) {
-              stepInfo.pythonInputs = step.Input.map(input => ({
-                type: input.$type || 'unknown',
-                value: input.Value || ''
-              }));
-            }
-            
-            if (step.Output && step.Output.length > 0) {
-              stepInfo.additionalOutputs = step.Output.map(out => ({
-                type: out.$type || 'unknown',
-                value: out.Value || ''
-              }));
-            }
-          } else if (step.StepType === 'AIOperation') {
-            stepInfo.modelName = step.DebugInformation?.modelDisplayName || step.DebugInformation?.modelName || 'N/A';
-            stepInfo.modelProvider = step.DebugInformation?.modelProviderType || 'N/A';
-            stepInfo.tokens = {
-              input: step.DebugInformation?.inputTokens || '0',
-              output: step.DebugInformation?.outputTokens || '0',
-              total: step.DebugInformation?.totalTokens || '0',
-            };
-            
-            // Extract prompts
-            if (step.DebugInformation?.messages && step.DebugInformation.messages.length > 0) {
-              stepInfo.prompts = step.DebugInformation.messages.map(message => ({
-                role: message.Role?.toLowerCase() || message.role?.toLowerCase() || 'user',
-                content: message.TextContent || message.content || message.text || ''
-              })).filter(prompt => prompt.content);
-            } else if (step.Input && step.Input.length > 0) {
-              stepInfo.prompts = step.Input.map(input => ({
-                role: 'user',
-                content: input.Value || ''
-              })).filter(prompt => prompt.content);
-            }
-            
-            // Extract tool calls
-            if (step.DebugInformation?.tools && step.DebugInformation.tools.length > 0) {
-              stepInfo.tools = step.DebugInformation.tools.map(tool => {
-                // Enhance tool name if possible
-                if (!tool.name && !tool.ToolName && tool.RequestUrl) {
-                  try {
-                    const url = new URL(tool.RequestUrl);
-                    if (url.hostname.includes('bing.microsoft.com')) {
-                      tool.ToolName = "Microsoft Bing Search";
-                    } else if (url.hostname.includes('api.openai.com')) {
-                      tool.ToolName = "OpenAI API";
-                    } else if (url.hostname.includes('maps.googleapis.com')) {
-                      tool.ToolName = "Google Maps";
-                    }
-                  } catch (e) {
-                    // Ignore URL parsing errors
-                  }
-                }
-                
-                return {
-                  name: tool.ToolName || tool.name || "Unknown Tool",
-                  id: tool.id || tool.ToolId || '',
-                  arguments: tool.ToolParameters || tool.arguments || '',
-                  result: tool.ResponseContent || tool.result || '',
-                  requestContent: tool.RequestContent || '',
-                  requestUrl: tool.RequestUrl || '',
-                  totalBytesSent: tool.TotalBytesSent || 0,
-                  totalBytesReceived: tool.TotalBytesReceived || 0,
-                  durationMs: tool.DurationMilliseconds || 0,
-                  method: tool.RequestMethod || 'GET'
-                };
-              });
-            }
-            
-            // Get direct response if available
-            if (step.Result?.Value) {
-              stepInfo.response = step.Result.Value;
-            }
-          } else if (step.StepType === 'APIToolStep' || step.StepType === 'WebAPIPluginStep') {
-            stepInfo.apiToolName = step.DebugInformation?.toolName || 'Unknown API Tool';
-            
-            // Process API tools
-            const processTools = (tools) => tools.map(tool => ({
-              name: tool.ToolName || tool.name || 'Unknown Tool',
-              parameters: tool.ToolParameters || tool.RequestParameters || {},
-              url: tool.RequestUrl || '',
-              method: tool.RequestMethod || 'GET',
-              statusCode: tool.ResponseStatusCode || 0,
-              responseContent: tool.ResponseContent || '',
-              responseHeaders: tool.ResponseHeaders || {},
-              requestHeaders: tool.RequestHeaders || {},
-              requestContent: tool.RequestContent || '',
-              totalBytesSent: tool.TotalBytesSent || 0,
-              totalBytesReceived: tool.TotalBytesReceived || 0,
-              durationMs: tool.DurationMilliseconds || 0,
-              error: tool.ErrorMessage || ''
-            }));
-            
-            if (step.DebugInformation?.tools && step.DebugInformation.tools.length > 0) {
-              stepInfo.apiTools = processTools(step.DebugInformation.tools);
-            } else if (step.tools && step.tools.length > 0) {
-              stepInfo.apiTools = processTools(step.tools);
-            }
-          } else if (step.StepType === 'DataSearch' && step.Result && step.Result.Value) {
-            try {
-              stepInfo.searchResults = JSON.parse(step.Result.Value);
-            } catch (e) {
-              console.error('Error parsing DataSearch results:', e);
-            }
-          }
-          
-          // Add error information
-          if (!step.Success && step.ExceptionMessage) {
-            stepInfo.error = step.ExceptionMessage;
-            result.errors.push({
-              stepId: step.StepId,
-              stepType: step.StepType,
-              message: step.ExceptionMessage,
+          // If there are inputs, capture them
+          if (step.Input && step.Input.length > 0) {
+            stepInfo.pythonInputs = step.Input.map(input => {
+              return {
+                type: input.$type || "unknown",
+                value: input.Value || ""
+              };
             });
           }
           
-          result.steps.push(stepInfo);
-        }
-        
-        // Sort steps by start time
-        result.steps.sort((a, b) => {
-          const dateA = new Date(a.startedAt === 'N/A' ? 0 : a.startedAt);
-          const dateB = new Date(b.startedAt === 'N/A' ? 0 : b.startedAt);
-          return dateA - dateB;
-        });
-        
-        // Find the final output
-        const outputSteps = result.steps.filter(step => step.type === 'OutputStep');
-        if (outputSteps.length > 0) {
-          const lastOutputStep = outputSteps[outputSteps.length - 1];
-          if (lastOutputStep.output) {
-            result.summary.finalOutput = lastOutputStep.output;
+          // Also capture additional outputs if available
+          if (step.Output && step.Output.length > 0) {
+            stepInfo.additionalOutputs = step.Output.map(out => {
+              return {
+                type: out.$type || "unknown",
+                value: out.Value || ""
+              };
+            });
+          }
+        } else if (step.StepType === "APIToolStep" || step.StepType === "WebAPIPluginStep") {
+          // Handle API tool steps
+          stepInfo.apiToolName = step.DebugInformation?.toolName || "Unknown API Tool";
+          
+          // Process the API parameters
+          if (step.DebugInformation?.tools && step.DebugInformation.tools.length > 0) {
+            stepInfo.apiTools = step.DebugInformation.tools.map(tool => {
+              return {
+                name: tool.ToolName || tool.name || "Unknown Tool",
+                parameters: tool.ToolParameters || tool.RequestParameters || {},
+                url: tool.RequestUrl || "",
+                method: tool.RequestMethod || "GET",
+                statusCode: tool.ResponseStatusCode || 0,
+                responseContent: tool.ResponseContent || "",
+                responseHeaders: tool.ResponseHeaders || {},
+                requestHeaders: tool.RequestHeaders || {},
+                error: tool.ErrorMessage || ""
+              };
+            });
+          }
+          
+          // If there are no tools in DebugInformation but there are standalone tools
+          // (this format is used by some API integrations like JIRA)
+          else if (step.tools && step.tools.length > 0) {
+            stepInfo.apiTools = step.tools.map(tool => {
+              return {
+                name: tool.ToolName || tool.name || "Unknown Tool",
+                parameters: tool.ToolParameters || tool.RequestParameters || {},
+                url: tool.RequestUrl || "",
+                method: tool.RequestMethod || "GET",
+                statusCode: tool.ResponseStatusCode || 0,
+                responseContent: tool.ResponseContent || "",
+                responseHeaders: tool.ResponseHeaders || {},
+                requestHeaders: tool.RequestHeaders || {},
+                error: tool.ErrorMessage || ""
+              };
+            });
+          }
+        } else if (step.StepType === "AIOperation") {
+          stepInfo.modelName = step.DebugInformation?.modelDisplayName || step.DebugInformation?.modelName || "N/A";
+          stepInfo.modelProvider = step.DebugInformation?.modelProviderType || "N/A";
+          stepInfo.tokens = {
+            input: step.DebugInformation?.inputTokens || "0",
+            output: step.DebugInformation?.outputTokens || "0",
+            total: step.DebugInformation?.totalTokens || "0",
+          };
+          
+          // Extract prompts from messages array or from Input array
+          if (step.DebugInformation?.messages && step.DebugInformation.messages.length > 0) {
+            // Standardize the prompt format
+            stepInfo.prompts = step.DebugInformation.messages.map(message => {
+              return {
+                role: message.Role?.toLowerCase() || message.role?.toLowerCase() || "user",
+                content: message.TextContent || message.content || message.text || ""
+              };
+            }).filter(prompt => prompt.content);
+          } else if (step.Input && step.Input.length > 0) {
+            // Try to get prompts from the Input array
+            stepInfo.prompts = step.Input.map(input => {
+              return {
+                role: "user",
+                content: input.Value || ""
+              };
+            }).filter(prompt => prompt.content);
+          }
+          
+          // Extract tool calls information
+          if (step.DebugInformation?.tools && step.DebugInformation.tools.length > 0) {
+            // Enhance the tool information for better display
+            stepInfo.tools = step.DebugInformation.tools.map(tool => {
+              // Extract tool name from the RequestUrl if available and not already set
+              if (!tool.name && !tool.ToolName && tool.RequestUrl) {
+                try {
+                  const url = new URL(tool.RequestUrl);
+                  if (url.hostname.includes("bing.microsoft.com")) {
+                    tool.ToolName = "Microsoft Bing Search";
+                  } else if (url.hostname.includes("api.openai.com")) {
+                    tool.ToolName = "OpenAI API";
+                  } else if (url.hostname.includes("maps.googleapis.com")) {
+                    tool.ToolName = "Google Maps";
+                  }
+                } catch (e) {
+                  // Leave name as is if URL parsing fails
+                }
+              }
+              
+              return {
+                name: tool.ToolName || tool.name || "Unknown Tool",
+                id: tool.id || tool.ToolId || "",
+                arguments: tool.ToolParameters || tool.arguments || "",
+                result: tool.ResponseContent || tool.result || ""
+              };
+            });
+          }
+          
+          // In case the AI operation provides a response directly
+          if (step.Result?.Value) {
+            stepInfo.response = step.Result.Value;
+          }
+        } else if (step.StepType === "DataSearch" && step.Result && step.Result.Value) {
+          try {
+            stepInfo.searchResults = JSON.parse(step.Result.Value);
+          } catch (e) {
+            console.error("Error parsing DataSearch results:", e);
           }
         }
         
-        // Fallback to AI response if no output step found
-        if (!result.summary.finalOutput) {
-          const aiSteps = result.steps.filter(step => step.type === 'AIOperation' && step.response);
-          if (aiSteps.length > 0) {
-            const lastAIStep = aiSteps[aiSteps.length - 1];
-            result.summary.finalOutput = lastAIStep.response || '';
-          }
+        // Add error information if present
+        if (!step.Success && step.ExceptionMessage) {
+          stepInfo.error = step.ExceptionMessage;
+          result.errors.push({
+            stepId: step.StepId,
+            stepType: step.StepType,
+            message: step.ExceptionMessage,
+          });
+        }
+        
+        result.steps.push(stepInfo);
+      }
+      
+      // Sort steps by start time
+      result.steps.sort((a, b) => {
+        const dateA = new Date(a.startedAt === "N/A" ? 0 : a.startedAt);
+        const dateB = new Date(b.startedAt === "N/A" ? 0 : b.startedAt);
+        return dateA - dateB;
+      });
+      
+      // Now that steps are sorted, find the final output from the last OutputStep
+      const outputSteps = result.steps.filter(step => step.type === "OutputStep");
+      if (outputSteps.length > 0) {
+        const lastOutputStep = outputSteps[outputSteps.length - 1];
+        if (lastOutputStep.output) {
+          result.summary.finalOutput = lastOutputStep.output;
         }
       }
       
-      return result;
-    } catch (e) {
-      console.error('Error in parseLogClient:', e);
-      throw e;
+      // If we couldn't find the output from OutputStep, try the last AIOperation response
+      if (!result.summary.finalOutput) {
+        const aiSteps = result.steps.filter(step => step.type === "AIOperation" && step.response);
+        if (aiSteps.length > 0) {
+          const lastAIStep = aiSteps[aiSteps.length - 1];
+          result.summary.finalOutput = lastAIStep.response || "";
+        }
+      }
     }
+    
+    return result;
   }
   
   // Format date-time string

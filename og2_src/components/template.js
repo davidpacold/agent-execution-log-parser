@@ -5,11 +5,6 @@
 import { getStyles } from './styles.js';
 import { getScripts } from './scripts.js';
 
-/**
- * Renders the HTML for the log parser UI
- * 
- * @returns {string} The complete HTML document
- */
 export function renderHTML() {
   return `<!DOCTYPE html>
 <html lang="en">
