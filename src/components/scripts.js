@@ -569,15 +569,17 @@ const initializePage = function() {
           // Enhance the tool information for better display
           stepInfo.tools = debugInfo.tools.map(tool => {
             // Extract tool name from the RequestUrl if available and not already set
-            if (!tool.name && !tool.ToolName && tool.RequestUrl) {
+            if (!tool.name && !tool.toolName && !tool.ToolName && (tool.RequestUrl || tool.requestUrl)) {
               try {
-                const url = new URL(tool.RequestUrl);
+                const url = new URL(tool.RequestUrl || tool.requestUrl);
                 if (url.hostname.includes('bing.microsoft.com')) {
-                  tool.ToolName = "Microsoft Bing Search";
+                  tool.toolName = "Microsoft Bing Search";
                 } else if (url.hostname.includes('api.openai.com')) {
-                  tool.ToolName = "OpenAI API";
+                  tool.toolName = "OpenAI API";
                 } else if (url.hostname.includes('maps.googleapis.com')) {
-                  tool.ToolName = "Google Maps";
+                  tool.toolName = "Google Maps";
+                } else if (url.hostname.includes('graph.microsoft.com')) {
+                  tool.toolName = "Microsoft Graph API";
                 }
               } catch (e) {
                 // Leave name as is if URL parsing fails
@@ -585,16 +587,18 @@ const initializePage = function() {
             }
             
             return {
-              name: tool.ToolName || tool.name || "Unknown Tool",
-              id: tool.id || tool.ToolId || '',
-              arguments: tool.ToolParameters || tool.arguments || '',
-              result: tool.ResponseContent || tool.result || '',
-              requestContent: tool.RequestContent || '',
-              requestUrl: tool.RequestUrl || '',
-              totalBytesSent: tool.TotalBytesSent || 0,
-              totalBytesReceived: tool.TotalBytesReceived || 0,
-              durationMs: tool.DurationMilliseconds || 0,
-              method: tool.RequestMethod || 'GET'
+              name: tool.ToolName || tool.toolName || tool.name || "Unknown Tool",
+              id: tool.id || tool.ToolId || tool.toolId || '',
+              arguments: tool.ToolParameters || tool.toolParameters || tool.arguments || '',
+              result: tool.ResponseContent || tool.responseContent || tool.result || '',
+              requestContent: tool.RequestContent || tool.requestContent || '',
+              requestUrl: tool.RequestUrl || tool.requestUrl || '',
+              totalBytesSent: tool.TotalBytesSent || tool.totalBytesSent || 0,
+              totalBytesReceived: tool.TotalBytesReceived || tool.totalBytesReceived || 0,
+              durationMs: tool.DurationMilliseconds || tool.durationMilliseconds || 0,
+              method: tool.RequestMethod || tool.requestMethod || 'GET',
+              errorMessage: tool.ErrorMessage || tool.errorMessage || '',
+              responseStatusCode: tool.ResponseStatusCode || tool.responseStatusCode
             };
           });
         }
@@ -604,25 +608,25 @@ const initializePage = function() {
       } else if (stepType === 'APIToolStep' || stepType === 'WebAPIPluginStep') {
         // Handle API tool steps
         const debugInfo = isFormat1 ? step.DebugInformation : step.debugInformation;
-        stepInfo.apiToolName = debugInfo?.toolName || 'Unknown API Tool';
+        stepInfo.apiToolName = debugInfo?.toolName || debugInfo?.ToolName || 'Unknown API Tool';
         
         // Process the API parameters
         if (debugInfo?.tools && debugInfo.tools.length > 0) {
           stepInfo.apiTools = debugInfo.tools.map(tool => {
             return {
-              name: tool.ToolName || tool.name || 'Unknown Tool',
-              parameters: tool.ToolParameters || tool.RequestParameters || {},
-              url: tool.RequestUrl || '',
-              method: tool.RequestMethod || 'GET',
-              statusCode: tool.ResponseStatusCode || 0,
-              responseContent: tool.ResponseContent || '',
-              responseHeaders: tool.ResponseHeaders || {},
-              requestHeaders: tool.RequestHeaders || {},
-              requestContent: tool.RequestContent || '',
-              totalBytesSent: tool.TotalBytesSent || 0,
-              totalBytesReceived: tool.TotalBytesReceived || 0,
-              durationMs: tool.DurationMilliseconds || 0,
-              error: tool.ErrorMessage || ''
+              name: tool.ToolName || tool.toolName || tool.name || 'Unknown Tool',
+              parameters: tool.ToolParameters || tool.toolParameters || tool.RequestParameters || tool.requestParameters || {},
+              url: tool.RequestUrl || tool.requestUrl || '',
+              method: tool.RequestMethod || tool.requestMethod || 'GET',
+              statusCode: tool.ResponseStatusCode || tool.responseStatusCode || 0,
+              responseContent: tool.ResponseContent || tool.responseContent || '',
+              responseHeaders: tool.ResponseHeaders || tool.responseHeaders || {},
+              requestHeaders: tool.RequestHeaders || tool.requestHeaders || {},
+              requestContent: tool.RequestContent || tool.requestContent || '',
+              totalBytesSent: tool.TotalBytesSent || tool.totalBytesSent || 0,
+              totalBytesReceived: tool.TotalBytesReceived || tool.totalBytesReceived || 0,
+              durationMs: tool.DurationMilliseconds || tool.durationMilliseconds || 0,
+              error: tool.ErrorMessage || tool.errorMessage || ''
             };
           });
         }
@@ -630,19 +634,19 @@ const initializePage = function() {
         else if (step.tools && step.tools.length > 0) {
           stepInfo.apiTools = step.tools.map(tool => {
             return {
-              name: tool.ToolName || tool.name || 'Unknown Tool',
-              parameters: tool.ToolParameters || tool.RequestParameters || {},
-              url: tool.RequestUrl || '',
-              method: tool.RequestMethod || 'GET',
-              statusCode: tool.ResponseStatusCode || 0,
-              responseContent: tool.ResponseContent || '',
-              responseHeaders: tool.ResponseHeaders || {},
-              requestHeaders: tool.RequestHeaders || {},
-              requestContent: tool.RequestContent || '',
-              totalBytesSent: tool.TotalBytesSent || 0,
-              totalBytesReceived: tool.TotalBytesReceived || 0,
-              durationMs: tool.DurationMilliseconds || 0,
-              error: tool.ErrorMessage || ''
+              name: tool.ToolName || tool.toolName || tool.name || 'Unknown Tool',
+              parameters: tool.ToolParameters || tool.toolParameters || tool.RequestParameters || tool.requestParameters || {},
+              url: tool.RequestUrl || tool.requestUrl || '',
+              method: tool.RequestMethod || tool.requestMethod || 'GET',
+              statusCode: tool.ResponseStatusCode || tool.responseStatusCode || 0,
+              responseContent: tool.ResponseContent || tool.responseContent || '',
+              responseHeaders: tool.ResponseHeaders || tool.responseHeaders || {},
+              requestHeaders: tool.RequestHeaders || tool.requestHeaders || {},
+              requestContent: tool.RequestContent || tool.requestContent || '',
+              totalBytesSent: tool.TotalBytesSent || tool.totalBytesSent || 0,
+              totalBytesReceived: tool.TotalBytesReceived || tool.totalBytesReceived || 0,
+              durationMs: tool.DurationMilliseconds || tool.durationMilliseconds || 0,
+              error: tool.ErrorMessage || tool.errorMessage || ''
             };
           });
         }
@@ -1044,8 +1048,19 @@ const initializePage = function() {
             stepsHtml += "<div class=\\"api-section-title\\">Response: <span class=\\"api-status\\">" + 
               (tool.statusCode ? "Status " + tool.statusCode : "No status code") + "</span></div>";
             
-            if (tool.error) {
-              stepsHtml += "<div class=\\"api-error\\">" + tool.error + "</div>";
+            if (tool.error || tool.errorMessage) {
+              stepsHtml += "<div class=\\"api-error\\">" + (tool.error || tool.errorMessage) + "</div>";
+            }
+            
+            if (tool.statusCode && tool.statusCode !== 200) {
+              const statusMessage = tool.statusCode === 401 ? "Unauthorized - Authentication required or token expired" :
+                                   tool.statusCode === 403 ? "Forbidden - No permission to access this resource" :
+                                   tool.statusCode === 404 ? "Not Found - The requested resource does not exist" :
+                                   tool.statusCode === 429 ? "Too Many Requests - Rate limit exceeded" :
+                                   tool.statusCode >= 500 ? "Server Error - The server encountered an error" :
+                                   "Request Failed";
+                                   
+              stepsHtml += "<div class=\\"api-error\\">Status " + tool.statusCode + " - " + statusMessage + "</div>";
             }
             
             // First detect the tool type for custom handling
