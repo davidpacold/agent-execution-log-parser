@@ -22,7 +22,8 @@ export const StepType = {
   AI_OPERATION: 'AIOperation',
   API_TOOL: 'APIToolStep',
   WEB_API: 'WebAPIPluginStep',
-  DATA_SEARCH: 'DataSearch'
+  DATA_SEARCH: 'DataSearch',
+  ROUTER: 'RouterStep'
 };
 
 /**
@@ -553,6 +554,20 @@ export function extractStepInput(step, isFormat1) {
  * @returns {string|object|null} - The extracted output or null if none
  */
 export function extractStepOutput(step, isFormat1) {
+  // Check if this is a RouterStep, which often has debug info with response
+  const stepType = isFormat1 ? step.StepType : step.stepType;
+  if (stepType === 'RouterStep') {
+    const debugInfo = isFormat1 ? step.DebugInformation : step.debugInformation;
+    if (debugInfo?.response) {
+      try {
+        // Router responses are often JSON strings
+        return JSON.parse(debugInfo.response);
+      } catch (e) {
+        return debugInfo.response;
+      }
+    }
+  }
+  
   // Check for Result/result which is common for many steps
   const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
   if (resultValue) return resultValue;
@@ -569,6 +584,52 @@ export function extractStepOutput(step, isFormat1) {
   if (debugInfo?.response) return debugInfo.response;
   
   return null;
+}
+
+/**
+ * Parse a router step
+ * @param {object} step - The step data
+ * @param {boolean} isFormat1 - Whether the log is in format 1
+ * @returns {object} - The parsed router step data
+ */
+export function parseRouterStep(step, isFormat1) {
+  const stepInfo = {};
+  const debugInfo = isFormat1 ? step.DebugInformation : step.debugInformation;
+  
+  // Capture model information if available
+  if (debugInfo) {
+    stepInfo.modelName = debugInfo.modelDisplayName || debugInfo.modelName || 'N/A';
+    stepInfo.modelProvider = debugInfo.modelProviderType || 'N/A';
+    
+    // Extract token information
+    if (debugInfo.inputTokens || debugInfo.outputTokens || debugInfo.totalTokens) {
+      stepInfo.tokens = {
+        input: debugInfo.inputTokens || '0',
+        output: debugInfo.outputTokens || '0',
+        total: debugInfo.totalTokens || '0',
+      };
+    }
+    
+    // Extract routing decision
+    if (debugInfo.response) {
+      try {
+        stepInfo.routeDecision = JSON.parse(debugInfo.response);
+      } catch (e) {
+        stepInfo.routeDecision = debugInfo.response;
+      }
+    }
+  }
+  
+  // If the result contains branch information
+  if ((isFormat1 && step.Result?.$type === 'branch') || 
+      (!isFormat1 && step.result?.$type === 'branch')) {
+    const branchIds = isFormat1 ? step.Result?.BranchIds : step.result?.BranchIds;
+    if (branchIds && Array.isArray(branchIds)) {
+      stepInfo.branchIds = branchIds;
+    }
+  }
+  
+  return stepInfo;
 }
 
 /**
@@ -607,6 +668,9 @@ export function parseStepByType(step, stepType, isFormat1) {
       break;
     case StepType.DATA_SEARCH:
       stepData = parseDataSearchStep(step, isFormat1);
+      break;
+    case StepType.ROUTER:
+      stepData = parseRouterStep(step, isFormat1);
       break;
     default:
       // Return empty object for unknown step types

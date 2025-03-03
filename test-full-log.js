@@ -183,6 +183,23 @@ async function testLogParser() {
     } else {
       console.log("  Output: <none>");
     }
+    
+    // Show type-specific details
+    if (step.type === 'RouterStep') {
+      if (step.routeDecision) {
+        console.log("  Route Decision:", JSON.stringify(step.routeDecision));
+      }
+      if (step.branchIds) {
+        console.log("  Branch IDs:", step.branchIds);
+      }
+    } else if (step.type === 'AIOperation') {
+      if (step.modelName) {
+        console.log("  Model:", step.modelName);
+      }
+      if (step.tokens) {
+        console.log("  Tokens:", step.tokens);
+      }
+    }
   });
 }
 

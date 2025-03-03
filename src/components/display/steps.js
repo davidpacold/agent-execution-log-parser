@@ -8,6 +8,7 @@ import { renderPythonStep } from './step-renderers/python-step.js';
 import { renderAIOperationStep } from './step-renderers/ai-operation-step.js';
 import { renderAPIToolStep } from './step-renderers/api-tool-step.js';
 import { renderDataSearchStep } from './step-renderers/data-search-step.js';
+import { renderRouterStep } from './step-renderers/router-step.js';
 import { sanitizeString } from '../../lib/formatters.js';
 
 /**
@@ -124,6 +125,8 @@ function renderStep(step, index) {
     html += renderAIOperationStep(step);
   } else if (stepType === "APIToolStep" || stepType === "WebAPIPluginStep") {
     html += renderAPIToolStep(step);
+  } else if (stepType === "RouterStep") {
+    html += renderRouterStep(step);
   }
   
   // Add output if present (for all step types)
