@@ -1,33 +1,75 @@
 name = "agent-execution-log-parser"
 main = "src/index.js"
+
+# Worker settings
 compatibility_date = "2024-02-26"
+workers_dev = true
+send_metrics = true
 
-# Memory and CPU limits
-usage_model = "bundled"
-compatibility_flags = ["nodejs_compat"]
+# Compatibility settings
+compatibility_flags = [
+  "nodejs_compat" # Enables Node.js compatibility features
+]
 
-# Routes configuration
-# routes = [
-#  { pattern = "example.com/api/logs", zone_name = "example.com" }
-# ]
+# Triggers configuration
+triggers = { crons = [] } # Add cron triggers if needed
 
 # Environment configurations
 [env.production]
 name = "agent-execution-log-parser"
-# workers_dev = true
+route = { pattern = "agent-execution-log-parser.david-pacold.workers.dev", custom_domain = false }
 
 [env.preview]
 name = "agent-execution-log-parser-preview"
-# workers_dev = true
+# Modern routing configuration for preview environment
+# routes = [
+#   { pattern = "preview.agent-execution-log-parser.david-pacold.workers.dev/*", zone_name = "david-pacold.workers.dev" }
+# ]
 
 # Observability configuration
 [observability]
 enabled = true
 
-# Add variables if needed
-# [vars]
-# API_KEY = "default-placeholder-key"
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+API_VERSION = "1.0.1"
+MAX_LOG_SIZE_MB = "10"
 
-# Custom domains
-# [env.production.routes]
-# custom_domain = "logs.example.com"
+# Define secrets (secrets are never included in the code)
+# [secrets]
+# list secrets here that will be manually added with `wrangler secret put`
+# example: AUTH_TOKEN
+
+# Commented out sections that require specific account setup
+# ========================================================
+
+# KV namespaces - Uncomment and set ID when needed
+# [[kv_namespaces]]
+# binding = "LOGS_KV"
+# id = "xxxxx" # Replace with actual KV namespace ID
+
+# Durable Objects - Uncomment when implementing persistent storage
+# [[durable_objects.bindings]]
+# name = "LOG_STORAGE"
+# class_name = "LogStorage"
+# [[migrations]]
+# tag = "v1" # Should be unique for each migration
+# new_classes = ["LogStorage"]
+
+# D1 Database - Uncomment when adding database functionality
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "logs_database"
+# database_id = "xxxxx" # Get this from Cloudflare dashboard
+
+# R2 Storage - Uncomment when adding file storage
+# [[r2_buckets]]
+# binding = "STORAGE"
+# bucket_name = "log-files"
+# preview_bucket_name = "log-files-preview" # Optional, for preview environment
+
+# Queues - Uncomment when implementing background processing
+# [[queues.producers]]
+# binding = "LOG_QUEUE"
+# queue = "log-processing-queue"

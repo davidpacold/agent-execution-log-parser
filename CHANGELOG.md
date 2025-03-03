@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2025-03-03
+
+### Added
+- Environment variables support for configurable settings
+- Request timing and performance monitoring
+- Enhanced logging with environment context
+
+### Changed
+- Updated Wrangler configuration with modern Cloudflare Workers features
+- Improved error handling with better context information
+
+### Fixed
+- Removed deprecated `usage_model` from wrangler.toml configuration
+- Updated GitHub Actions workflow to use proper deployment steps
+
 ## [1.0.0] - 2025-03-02
 
 ### Added

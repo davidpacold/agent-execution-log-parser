@@ -4,8 +4,8 @@
  */
 import { formatDateTime } from './formatters.js';
 
-// Maximum file size to process (10MB)
-export const MAX_LOG_SIZE = 10 * 1024 * 1024;
+// Maximum file size to process - default to 10MB, but allow overriding via environment variable
+export const MAX_LOG_SIZE = (parseInt(process.env.MAX_LOG_SIZE_MB) || 10) * 1024 * 1024;
 
 /**
  * Step types supported by the parser
