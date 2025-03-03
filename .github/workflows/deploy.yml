@@ -1,4 +1,4 @@
-name: Deploy to Cloudflare Workers
+name: Build, Test and Deploy
 
 on:
   push:
@@ -30,11 +30,21 @@ jobs:
           cache: 'npm'
           
       - name: Install dependencies
-        run: npm ci
+        run: npm install
         
       - name: Run tests
         run: npm test
-        continue-on-error: true # Add proper testing and remove this
+        
+      - name: Verify build
+        run: npm run deploy -- --dry-run
+        
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: coverage/
+          retention-days: 7
+        if: always() # Upload even if tests fail
 
   deploy_production:
     needs: build_and_test
@@ -112,7 +122,9 @@ jobs:
         run: |
           if [ "${{ job.status }}" == "success" ]; then
             echo "✅ Preview deployment successful!"
-            echo "Preview URL: https://agent-execution-log-parser-preview.workers.dev"
+            PREVIEW_URL="https://agent-execution-log-parser-preview.david-pacold.workers.dev"
+            echo "Preview URL: $PREVIEW_URL"
+            echo "PREVIEW_URL=$PREVIEW_URL" >> $GITHUB_ENV
           else
             echo "❌ Preview deployment failed!"
           fi
@@ -134,10 +146,15 @@ jobs:
         with:
           github-token: ${{ github.token }}
           script: |
-            const previewUrl = `https://agent-execution-log-parser-preview.workers.dev`;
+            const previewUrl = `https://agent-execution-log-parser-preview.david-pacold.workers.dev`;
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `✅ Preview deployment is available at: [${previewUrl}](${previewUrl})`
+              body: `✅ Preview deployment is available at: [${previewUrl}](${previewUrl})
+              
+### Changes Overview
+- **Environment:** Preview
+- **Deployment Time:** ${new Date().toISOString()}
+- **Version:** ${process.env.GITHUB_SHA.slice(0, 7)}`
             });

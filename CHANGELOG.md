@@ -8,14 +8,19 @@ All notable changes to this project will be documented in this file.
 - Environment variables support for configurable settings
 - Request timing and performance monitoring
 - Enhanced logging with environment context
+- Consolidated GitHub Actions workflow with improved CI/CD pipeline
+- Test results artifact upload in GitHub Actions
+- Better PR comments with deployment information
 
 ### Changed
 - Updated Wrangler configuration with modern Cloudflare Workers features
 - Improved error handling with better context information
+- Streamlined GitHub Actions workflow to prevent duplicate runs
 
 ### Fixed
 - Removed deprecated `usage_model` from wrangler.toml configuration
-- Updated GitHub Actions workflow to use proper deployment steps
+- Fixed request timing implementation for better test compatibility
+- Optimized environment variable handling
 
 ## [1.0.0] - 2025-03-02
 
