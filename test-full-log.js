@@ -186,12 +186,7 @@ async function testLogParser() {
     
     // Show type-specific details
     if (step.type === 'RouterStep') {
-      if (step.routeDecision) {
-        console.log("  Route Decision:", JSON.stringify(step.routeDecision));
-      }
-      if (step.branchIds) {
-        console.log("  Branch IDs:", step.branchIds);
-      }
+      console.log("  FULL ROUTER STEP OBJECT:", JSON.stringify(step, null, 2));
     } else if (step.type === 'AIOperation') {
       if (step.modelName) {
         console.log("  Model:", step.modelName);

@@ -2,6 +2,52 @@
 
 This document outlines the improvements made to the Agent Execution Log Parser project to enhance code quality, maintainability, and performance.
 
+## Step Rendering Improvements (Latest)
+
+### Problem
+The HTML log viewer was not consistently displaying detailed information for all step types. While some steps like AIOperation and DataSearch showed rich details, other steps like RouterStep and ExecutePipelineStep only showed basic information (ID, type, duration, timestamps).
+
+### Solution
+We implemented a comprehensive fix that ensures all step types have robust data for rendering, with three key improvements:
+
+1. **Enhanced Parser Functions**:
+   - Updated parsers to extract more data from log JSON
+   - Added support for advanced fields specific to each step type
+   - Made parsers more resilient with better error handling
+
+2. **Made Renderers More Robust**:
+   - Updated renderers to handle missing data gracefully
+   - Added default placeholders for missing fields
+   - Created consistent visual styling across all step types
+
+3. **Integrated Data Completion**:
+   - Added default field initialization in the core parseLogData function
+   - Ensures consistent data model across all contexts
+   - Prevents data loss between parsing and rendering
+
+### Specific Improvements by Step Type
+
+#### RouterStep
+- Added support for model information (name, provider)
+- Added token usage metrics
+- Added route decision visualization
+- Added branch IDs display
+
+#### ExecutePipelineStep
+- Added pipeline details (name, ID, version)
+- Added execution mode information
+- Added configuration and parameter visualization
+- Added support for child steps display
+
+#### InputStep and OutputStep
+- Added metadata display
+- Added format and content type information
+- Added size and timestamp metrics
+- Added source/destination information
+
+### Implementation Details
+The fix is implemented in the core log parser, ensuring all step types have their required fields with default values even when the source data doesn't include them. This guarantees that the renderers will always have the expected data structure to work with.
+
 ## Code Structure Improvements
 
 1. **Eliminated Code Duplication**

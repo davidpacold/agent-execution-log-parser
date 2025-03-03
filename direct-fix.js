@@ -71,7 +71,9 @@ const server = http.createServer(async (req, res) => {
         const executePipelineSteps = parsedData.steps.filter(s => s.type === 'ExecutePipelineStep');
         console.log("Found ExecutePipelineSteps:", executePipelineSteps.length);
         
-        // Return the parsed data
+        // The fix is now integrated into parseLogData, no need for additional processing
+        
+        // Return the enhanced parsed data
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(parsedData, null, 2));
       } catch (error) {

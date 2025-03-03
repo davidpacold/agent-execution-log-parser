@@ -156,9 +156,35 @@ export function parseStepCommon(step, isFormat1) {
  */
 export function parseInputStep(step, isFormat1) {
   const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
-  return {
-    input: resultValue || ''
+  const stepInfo = {
+    input: resultValue || '',
+    source: '',
+    inputType: '',
+    contentType: '',
+    format: '',
+    size: '',
+    timestamp: '',
+    user: '',
+    sessionId: ''
   };
+  
+  // Extract additional metadata if available
+  const metadata = isFormat1 ? step.Metadata : step.metadata;
+  if (metadata) {
+    stepInfo.metadata = metadata;
+    
+    // Extract common fields from metadata if they exist
+    stepInfo.source = metadata.source || metadata.Source || '';
+    stepInfo.inputType = metadata.type || metadata.Type || '';
+    stepInfo.contentType = metadata.contentType || metadata.ContentType || '';
+    stepInfo.format = metadata.format || metadata.Format || '';
+    stepInfo.size = metadata.size || metadata.Size || '';
+    stepInfo.timestamp = metadata.timestamp || metadata.Timestamp || '';
+    stepInfo.user = metadata.user || metadata.User || '';
+    stepInfo.sessionId = metadata.sessionId || metadata.SessionId || '';
+  }
+  
+  return stepInfo;
 }
 
 /**
@@ -176,7 +202,44 @@ export function parseOutputStep(step, isFormat1) {
     output = outputValue || '';
   }
   
-  return { output };
+  const stepInfo = {
+    output,
+    destination: '',
+    outputType: '',
+    contentType: '',
+    format: '',
+    size: '',
+    deliveryStatus: '',
+    deliveredAt: '',
+    recipients: []
+  };
+  
+  // Extract additional metadata if available
+  const metadata = isFormat1 ? step.Metadata : step.metadata;
+  if (metadata) {
+    stepInfo.metadata = metadata;
+    
+    // Extract common fields from metadata if they exist
+    stepInfo.destination = metadata.destination || metadata.Destination || '';
+    stepInfo.outputType = metadata.type || metadata.Type || '';
+    stepInfo.contentType = metadata.contentType || metadata.ContentType || '';
+    stepInfo.format = metadata.format || metadata.Format || '';
+    stepInfo.size = metadata.size || metadata.Size || '';
+    stepInfo.deliveryStatus = metadata.status || metadata.Status || '';
+    stepInfo.deliveredAt = metadata.deliveredAt || metadata.DeliveredAt || '';
+    
+    // Extract recipients
+    if (metadata.recipients || metadata.Recipients) {
+      const recipients = metadata.recipients || metadata.Recipients;
+      if (Array.isArray(recipients)) {
+        stepInfo.recipients = recipients;
+      } else if (typeof recipients === 'string') {
+        stepInfo.recipients = [recipients];
+      }
+    }
+  }
+  
+  return stepInfo;
 }
 
 /**
@@ -553,6 +616,39 @@ export function parseExecutePipelineStep(step, isFormat1) {
     console.log("ExecutePipelineStep input found:", typeof inputs);
   }
   
+  // Extract pipeline information if available
+  const debugInfo = isFormat1 ? step.DebugInformation : step.debugInformation;
+  if (debugInfo) {
+    stepInfo.pipelineName = debugInfo.pipelineName || debugInfo.name || '';
+    stepInfo.pipelineId = debugInfo.pipelineId || debugInfo.id || '';
+    stepInfo.pipelineVersion = debugInfo.version || '';
+    stepInfo.executionMode = debugInfo.executionMode || '';
+    
+    if (debugInfo.configuration) {
+      stepInfo.configuration = debugInfo.configuration;
+    }
+    
+    if (debugInfo.parameters) {
+      stepInfo.parameters = debugInfo.parameters;
+    }
+    
+    if (debugInfo.stats) {
+      stepInfo.stats = debugInfo.stats;
+    }
+    
+    if (debugInfo.steps) {
+      stepInfo.stepsCount = debugInfo.steps.length;
+      stepInfo.childSteps = debugInfo.steps.map(childStep => {
+        return {
+          id: childStep.id || '',
+          type: childStep.type || '',
+          success: childStep.success || false,
+          duration: childStep.duration || '',
+        };
+      });
+    }
+  }
+  
   return stepInfo;
 }
 
@@ -624,6 +720,16 @@ export function parseRouterStep(step, isFormat1) {
   const stepInfo = {};
   const debugInfo = isFormat1 ? step.DebugInformation : step.debugInformation;
   
+  // Initialize with default values to ensure renderer has something to work with
+  stepInfo.modelName = 'N/A';
+  stepInfo.modelProvider = 'N/A';
+  stepInfo.tokens = {
+    input: '0',
+    output: '0',
+    total: '0',
+  };
+  stepInfo.branchIds = [];
+  
   // Capture model information if available
   if (debugInfo) {
     stepInfo.modelName = debugInfo.modelDisplayName || debugInfo.modelName || 'N/A';
@@ -654,6 +760,15 @@ export function parseRouterStep(step, isFormat1) {
     const branchIds = isFormat1 ? step.Result?.BranchIds : step.result?.BranchIds;
     if (branchIds && Array.isArray(branchIds)) {
       stepInfo.branchIds = branchIds;
+    }
+  }
+  
+  // Extract any input from the router step
+  const inputs = isFormat1 ? step.Input : step.input;
+  if (inputs && inputs.length > 0) {
+    const inputValues = inputs.map(input => isFormat1 ? input.Value : input.value).filter(Boolean);
+    if (inputValues.length > 0) {
+      stepInfo.input = inputValues.length === 1 ? inputValues[0] : inputValues;
     }
   }
   
@@ -874,6 +989,84 @@ export function parseLogData(logData) {
     const dateB = new Date(b.startedAt === 'N/A' ? 0 : b.startedAt);
     return dateA - dateB;
   });
+  
+  // INTEGRATED FIX: Ensure all steps have complete data with defaults for missing fields
+  console.log("Applying integrated fix to ensure steps have complete data...");
+  
+  // Find any RouterSteps to verify they're being processed
+  const routerSteps = result.steps.filter(s => s.type === 'RouterStep');
+  if (routerSteps.length > 0) {
+    console.log(`Found ${routerSteps.length} RouterSteps`);
+    
+    // Log the first RouterStep before we modify it
+    console.log("RouterStep BEFORE fix:", JSON.stringify(routerSteps[0], null, 2));
+  }
+  
+  result.steps.forEach(step => {
+    console.log(`Processing step of type: ${step.type}`);
+    
+    if (step.type === 'RouterStep') {
+      // Add default fields if missing for RouterStep
+      console.log("Fixing RouterStep with ID:", step.id);
+      
+      step.modelName = step.modelName || 'Unknown';
+      step.modelProvider = step.modelProvider || 'Unknown';
+      step.tokens = step.tokens || { input: '0', output: '0', total: '0' };
+      step.routeDecision = step.routeDecision || null;
+      step.branchIds = step.branchIds || [];
+      
+      console.log("RouterStep fields after fix:");
+      console.log("- modelName:", step.modelName);
+      console.log("- modelProvider:", step.modelProvider);
+      console.log("- tokens:", JSON.stringify(step.tokens));
+      console.log("- routeDecision:", step.routeDecision ? "Present" : "Not present");
+      console.log("- branchIds:", Array.isArray(step.branchIds) ? step.branchIds.length : "Not an array");
+    }
+    else if (step.type === 'ExecutePipelineStep') {
+      // Add default fields if missing for ExecutePipelineStep
+      console.log("Fixing ExecutePipelineStep with ID:", step.id);
+      
+      step.pipelineName = step.pipelineName || 'Unknown Pipeline';
+      step.pipelineId = step.pipelineId || '';
+      step.pipelineVersion = step.pipelineVersion || '';
+      step.executionMode = step.executionMode || 'Standard';
+      step.configuration = step.configuration || {};
+      step.parameters = step.parameters || {};
+      step.stepsCount = step.stepsCount || 0;
+      step.childSteps = step.childSteps || [];
+    }
+    else if (step.type === 'InputStep') {
+      // Add default fields if missing for InputStep
+      console.log("Fixing InputStep with ID:", step.id);
+      
+      step.source = step.source || '';
+      step.inputType = step.inputType || '';
+      step.contentType = step.contentType || '';
+      step.format = step.format || '';
+      step.size = step.size || '';
+      step.timestamp = step.timestamp || '';
+      step.user = step.user || '';
+      step.sessionId = step.sessionId || '';
+    }
+    else if (step.type === 'OutputStep') {
+      // Add default fields if missing for OutputStep
+      console.log("Fixing OutputStep with ID:", step.id);
+      
+      step.destination = step.destination || '';
+      step.outputType = step.outputType || '';
+      step.contentType = step.contentType || '';
+      step.format = step.format || '';
+      step.size = step.size || '';
+      step.deliveryStatus = step.deliveryStatus || '';
+      step.deliveredAt = step.deliveredAt || '';
+      step.recipients = step.recipients || [];
+    }
+  });
+  
+  // After fixing, verify the RouterSteps
+  if (routerSteps.length > 0) {
+    console.log("RouterStep AFTER fix:", JSON.stringify(routerSteps[0], null, 2));
+  }
   
   // Now that steps are sorted, find the final output
   result.summary.finalOutput = findFinalOutput(result.steps);

@@ -350,6 +350,68 @@ h1 {
   overflow-x: auto;
 }
 
+/* Pipeline styling */
+.pipeline-config, .pipeline-params, .pipeline-stats {
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 0.9rem;
+  background-color: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.child-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.child-step {
+  background-color: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+  border-left: 3px solid #6c757d;
+}
+
+/* Input/Output styling */
+.input-metadata, .output-metadata {
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 0.9rem;
+  background-color: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+/* Router styling */
+.router-response {
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 0.9rem;
+  background-color: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.branch-ids {
+  list-style-type: none;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+
+.branch-ids li {
+  background-color: #e9ecef;
+  padding: 5px 10px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  font-family: monospace;
+  display: inline-block;
+  margin-right: 5px;
+}
+
 /* Search results styling */
 .search-results {
   display: flex;

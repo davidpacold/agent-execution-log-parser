@@ -46,6 +46,20 @@ export function initEventHandlers(elements, state) {
         // Use our parsing function
         try {
           state.parsedResult = parseLogData(data);
+          
+          // Debug log the complete parsed data for troubleshooting
+          console.log("FULL PARSED RESULT BEFORE DISPLAY:", 
+            JSON.stringify(state.parsedResult.steps.map(s => {
+              // Create a simplified view for logging
+              return {
+                id: s.id,
+                type: s.type,
+                hasModelData: s.type === 'RouterStep' ? !!s.modelName : false,
+                hasRouteDecision: s.type === 'RouterStep' ? !!s.routeDecision : false,
+                hasBranchIds: s.type === 'RouterStep' ? (s.branchIds?.length > 0) : false
+              };
+            }), null, 2)
+          );
         } catch (e) {
           console.error("Error parsing log:", e);
           alert("Error parsing log data: " + e.message);

@@ -43,8 +43,17 @@ export function displayResults(elements, parsedResult) {
   // Display steps
   elements.stepsContent.innerHTML = renderSteps(parsedResult.steps);
   
-  // Display raw JSON
-  elements.rawContent.textContent = JSON.stringify(parsedResult, null, 2);
+  // Display raw JSON and log it for debugging
+  const rawJson = JSON.stringify(parsedResult, null, 2);
+  elements.rawContent.textContent = rawJson;
+  
+  // Check for RouterSteps in the raw JSON
+  if (parsedResult && parsedResult.steps) {
+    const routerSteps = parsedResult.steps.filter(s => s.type === 'RouterStep');
+    if (routerSteps.length > 0) {
+      console.log("RAW JSON ROUTER STEPS:", JSON.stringify(routerSteps, null, 2));
+    }
+  }
   
   // Show results
   elements.loadingIndicator.classList.add("hidden");

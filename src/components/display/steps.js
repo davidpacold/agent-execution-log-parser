@@ -119,15 +119,21 @@ function renderStep(step, index) {
   // Start the table
   let tableHtml = renderStepCommon(step);
   
-  // Add input if present (for all step types)
-  tableHtml += renderStepInput(step);
+  // Add input if present (for all step types except InputStep which gets special handling)
+  if (stepType !== "InputStep") {
+    tableHtml += renderStepInput(step);
+  }
   
   // Add type-specific content
   if (stepType === "InputStep") {
+    // For InputStep, add input first then renderer-specific content
+    tableHtml += renderStepInput(step);
     tableHtml += renderInputStep(step);
     console.log(`Rendered InputStep content added`);
   } else if (stepType === "OutputStep") {
+    // For OutputStep, add renderer-specific content
     tableHtml += renderOutputStep(step);
+    // Output will be added after specific content
     console.log(`Rendered OutputStep content added`);
   } else if (stepType === "MemoryLoadStep" || stepType === "MemoryStoreStep") {
     tableHtml += renderMemoryStep(step);
@@ -153,13 +159,18 @@ function renderStep(step, index) {
     console.log(`ExecutePipelineStep content to add: "${pipelineHtml}"`);
     tableHtml += pipelineHtml;
     console.log(`Added ExecutePipelineStep content`);
+  } else if (stepType === "DataSearch") {
+    // Data search has custom rendering that happens later, outside the table
+    console.log(`DataSearch will be rendered outside the table`);
   } else {
     console.log(`No specific renderer for step type: ${stepType}`);
   }
   
   // Add output if present (for all step types)
-  // Only add if not an InputStep (which already shows input) or OutputStep (which already shows output)
-  if (stepType !== "InputStep" && stepType !== "OutputStep") {
+  // Special handling for OutputStep which needs to show output after its specific fields
+  if (stepType === "OutputStep") {
+    tableHtml += renderStepOutput(step);
+  } else if (stepType !== "InputStep") { // Skip output for InputStep
     tableHtml += renderStepOutput(step);
   }
   
@@ -207,6 +218,13 @@ export function renderSteps(steps) {
   })), null, 2));
   
   let html = "<div class=\"accordion\" id=\"stepsAccordion\">";
+  
+  // Debug log all steps before rendering to identify any data loss
+  console.log("DEBUG - ALL STEPS BEFORE RENDERING:", JSON.stringify(steps.map(s => ({
+    id: s.id,
+    type: s.type,
+    fullObject: s
+  })), null, 2));
   
   steps.forEach((step, index) => {
     console.log(`\nRendering step ${index + 1}: ${step.type}`);
