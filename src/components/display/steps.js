@@ -8,6 +8,7 @@ import { renderPythonStep } from './step-renderers/python-step.js';
 import { renderAIOperationStep } from './step-renderers/ai-operation-step.js';
 import { renderAPIToolStep } from './step-renderers/api-tool-step.js';
 import { renderDataSearchStep } from './step-renderers/data-search-step.js';
+import { sanitizeString } from '../../lib/formatters.js';
 
 /**
  * Render the common step fields
@@ -21,6 +22,68 @@ function renderStepCommon(step) {
     "<tr><th>Duration:</th><td>" + step.duration + "</td></tr>" +
     "<tr><th>Started:</th><td>" + step.startedAt + "</td></tr>" +
     "<tr><th>Finished:</th><td>" + step.finishedAt + "</td></tr>";
+}
+
+/**
+ * Render input for a step if present
+ * @param {object} step - The step data
+ * @returns {string} - The rendered HTML or empty string
+ */
+function renderStepInput(step) {
+  if (!step.input) return '';
+  
+  let inputHtml = "<tr><th>Input:</th><td>";
+  
+  if (typeof step.input === 'string') {
+    inputHtml += sanitizeString(step.input);
+  } else if (Array.isArray(step.input)) {
+    // If it's an array of inputs, display them as a list
+    inputHtml += "<ol class=\"mb-0 ps-3\">";
+    step.input.forEach(item => {
+      inputHtml += "<li>" + sanitizeString(String(item)) + "</li>";
+    });
+    inputHtml += "</ol>";
+  } else if (typeof step.input === 'object') {
+    // If it's an object, display as JSON
+    inputHtml += "<pre>" + sanitizeString(JSON.stringify(step.input, null, 2)) + "</pre>";
+  } else {
+    inputHtml += sanitizeString(String(step.input));
+  }
+  
+  inputHtml += "</td></tr>";
+  return inputHtml;
+}
+
+/**
+ * Render output for a step if present
+ * @param {object} step - The step data
+ * @returns {string} - The rendered HTML or empty string
+ */
+function renderStepOutput(step) {
+  // Check for either output or response (AI operations use response)
+  const output = step.output || step.response;
+  if (!output) return '';
+  
+  let outputHtml = "<tr><th>Output:</th><td>";
+  
+  if (typeof output === 'string') {
+    outputHtml += sanitizeString(output);
+  } else if (Array.isArray(output)) {
+    // If it's an array of outputs, display them as a list
+    outputHtml += "<ol class=\"mb-0 ps-3\">";
+    output.forEach(item => {
+      outputHtml += "<li>" + sanitizeString(String(item)) + "</li>";
+    });
+    outputHtml += "</ol>";
+  } else if (typeof output === 'object') {
+    // If it's an object, display as JSON
+    outputHtml += "<pre>" + sanitizeString(JSON.stringify(output, null, 2)) + "</pre>";
+  } else {
+    outputHtml += sanitizeString(String(output));
+  }
+  
+  outputHtml += "</td></tr>";
+  return outputHtml;
 }
 
 /**
@@ -45,6 +108,9 @@ function renderStep(step, index) {
   // Add common step fields
   html += renderStepCommon(step);
   
+  // Add input if present (for all step types)
+  html += renderStepInput(step);
+  
   // Add type-specific content
   if (stepType === "InputStep") {
     html += renderInputStep(step);
@@ -58,6 +124,12 @@ function renderStep(step, index) {
     html += renderAIOperationStep(step);
   } else if (stepType === "APIToolStep" || stepType === "WebAPIPluginStep") {
     html += renderAPIToolStep(step);
+  }
+  
+  // Add output if present (for all step types)
+  // Only add if not an InputStep (which already shows input) or OutputStep (which already shows output)
+  if (stepType !== "InputStep" && stepType !== "OutputStep") {
+    html += renderStepOutput(step);
   }
   
   // Add error if present

@@ -9,7 +9,6 @@ import { sanitizeString } from '../../../lib/formatters.js';
  * @returns {string} - The rendered HTML
  */
 export function renderInputStep(step) {
-  if (!step.input) return '';
-  
-  return "<tr><th>Input:</th><td>" + sanitizeString(step.input) + "</td></tr>";
+  // Input is already shown by the common renderStepInput function
+  return '';
 }

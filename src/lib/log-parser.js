@@ -184,21 +184,24 @@ export function parseOutputStep(step, isFormat1) {
  * @returns {object} - The parsed memory load step data
  */
 export function parseMemoryLoadStep(step, isFormat1) {
-  if (isFormat1) {
-    return {
-      memoryKey: step.Result?.Key || '',
-      memoryValue: step.Result?.Value || '',
-      memoryType: step.Result?.$type || '',
-      memoryOp: 'load'
-    };
-  } else {
-    return {
-      memoryKey: step.result?.key || '',
-      memoryValue: step.result?.value || '',
-      memoryType: step.result?.$type || '',
-      memoryOp: 'load'
-    };
+  const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
+  const memoryKey = isFormat1 ? step.Result?.Key : step.result?.key;
+  const memoryType = isFormat1 ? step.Result?.$type : step.result?.$type;
+  
+  // For load steps, the result is the output
+  const stepInfo = {
+    memoryKey: memoryKey || '',
+    memoryValue: resultValue || '',
+    memoryType: memoryType || '',
+    memoryOp: 'load'
+  };
+  
+  // Add output field for common display
+  if (resultValue) {
+    stepInfo.output = resultValue;
   }
+  
+  return stepInfo;
 }
 
 /**
@@ -209,25 +212,35 @@ export function parseMemoryLoadStep(step, isFormat1) {
  */
 export function parseMemoryStoreStep(step, isFormat1) {
   const inputs = isFormat1 ? step.Input : step.input;
+  const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
+  const stepInfo = { memoryOp: 'store' };
+  
   if (inputs && inputs.length > 0) {
     const input = inputs[0];
+    const inputValue = isFormat1 ? input?.Value : input?.value;
+    
     if (isFormat1) {
-      return {
-        memoryKey: input?.Key || '',
-        memoryValue: input?.Value || '',
-        memoryType: input?.$type || '',
-        memoryOp: 'store'
-      };
+      stepInfo.memoryKey = input?.Key || '';
+      stepInfo.memoryValue = inputValue || '';
+      stepInfo.memoryType = input?.$type || '';
     } else {
-      return {
-        memoryKey: input?.key || '',
-        memoryValue: input?.value || '',
-        memoryType: input?.$type || '',
-        memoryOp: 'store'
-      };
+      stepInfo.memoryKey = input?.key || '';
+      stepInfo.memoryValue = inputValue || '';
+      stepInfo.memoryType = input?.$type || '';
+    }
+    
+    // For store steps, the input value is what we're storing
+    if (inputValue) {
+      stepInfo.input = inputValue;
     }
   }
-  return { memoryOp: 'store' };
+  
+  // If there was a result, add it as output
+  if (resultValue) {
+    stepInfo.output = resultValue;
+  }
+  
+  return stepInfo;
 }
 
 /**
@@ -240,16 +253,22 @@ export function parsePythonStep(step, isFormat1) {
   const stepInfo = {};
   
   // Result is the output of the Python execution
+  const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
   if (isFormat1) {
     stepInfo.pythonOutput = {
       type: step.Result?.$type || 'python',
-      value: step.Result?.Value || ''
+      value: resultValue || ''
     };
   } else {
     stepInfo.pythonOutput = {
       type: step.result?.$type || 'python',
-      value: step.result?.value || ''
+      value: resultValue || ''
     };
+  }
+  
+  // Also set the output field for the common output display
+  if (resultValue) {
+    stepInfo.output = resultValue;
   }
   
   // If there are inputs, capture them
@@ -261,6 +280,12 @@ export function parsePythonStep(step, isFormat1) {
         value: isFormat1 ? input.Value || '' : input.value || ''
       };
     });
+    
+    // Also set the input field for the common input display
+    const inputValues = inputs.map(input => isFormat1 ? input.Value : input.value).filter(Boolean);
+    if (inputValues.length > 0) {
+      stepInfo.input = inputValues.length === 1 ? inputValues[0] : inputValues;
+    }
   }
   
   // Also capture additional outputs if available
@@ -296,13 +321,23 @@ export function parseAIOperationStep(step, isFormat1) {
     total: debugInfo?.totalTokens || '0',
   };
   
+  let promptInput = null;
+  
   // Extract prompts from messages array or from Input array
   if (debugInfo?.messages && debugInfo.messages.length > 0) {
     // Standardize the prompt format
     stepInfo.prompts = debugInfo.messages.map(message => {
+      const role = message.Role?.toLowerCase() || message.role?.toLowerCase() || 'user';
+      const content = message.TextContent || message.textContent || message.content || message.text || '';
+      
+      // Capture the user message as input
+      if (role === 'user' && content && !promptInput) {
+        promptInput = content;
+      }
+      
       return {
-        role: message.Role?.toLowerCase() || message.role?.toLowerCase() || 'user',
-        content: message.TextContent || message.textContent || message.content || message.text || ''
+        role: role,
+        content: content
       };
     }).filter(prompt => prompt.content);
   } else {
@@ -310,12 +345,24 @@ export function parseAIOperationStep(step, isFormat1) {
     if (inputs && inputs.length > 0) {
       // Try to get prompts from the Input array
       stepInfo.prompts = inputs.map(input => {
+        const content = isFormat1 ? input.Value || '' : input.value || '';
+        
+        // Capture the first input as input
+        if (content && !promptInput) {
+          promptInput = content;
+        }
+        
         return {
           role: 'user',
-          content: isFormat1 ? input.Value || '' : input.value || ''
+          content: content
         };
       }).filter(prompt => prompt.content);
     }
+  }
+  
+  // Set the input for common display
+  if (promptInput) {
+    stepInfo.input = promptInput;
   }
   
   // Extract tool calls information
@@ -389,6 +436,18 @@ export function parseAPIToolStep(step, isFormat1) {
         error: tool.ErrorMessage || ''
       };
     });
+    
+    // Extract input parameters for the common input display
+    if (debugInfo.tools[0]?.ToolParameters || debugInfo.tools[0]?.RequestParameters) {
+      stepInfo.input = debugInfo.tools[0]?.ToolParameters || debugInfo.tools[0]?.RequestParameters;
+    } else if (debugInfo.tools[0]?.RequestContent) {
+      stepInfo.input = debugInfo.tools[0]?.RequestContent;
+    }
+    
+    // Extract output for the common output display
+    if (debugInfo.tools[0]?.ResponseContent) {
+      stepInfo.output = debugInfo.tools[0]?.ResponseContent;
+    }
   }
   // If there are no tools in DebugInformation but there are standalone tools
   else if (step.tools && step.tools.length > 0) {
@@ -409,6 +468,24 @@ export function parseAPIToolStep(step, isFormat1) {
         error: tool.ErrorMessage || ''
       };
     });
+    
+    // Extract input parameters for the common input display
+    if (step.tools[0]?.ToolParameters || step.tools[0]?.RequestParameters) {
+      stepInfo.input = step.tools[0]?.ToolParameters || step.tools[0]?.RequestParameters;
+    } else if (step.tools[0]?.RequestContent) {
+      stepInfo.input = step.tools[0]?.RequestContent;
+    }
+    
+    // Extract output for the common output display
+    if (step.tools[0]?.ResponseContent) {
+      stepInfo.output = step.tools[0]?.ResponseContent;
+    }
+  }
+  
+  // Check for step-level result
+  const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
+  if (resultValue && !stepInfo.output) {
+    stepInfo.output = resultValue;
   }
   
   return stepInfo;
@@ -422,26 +499,76 @@ export function parseAPIToolStep(step, isFormat1) {
  */
 export function parseDataSearchStep(step, isFormat1) {
   const stepInfo = {};
+  const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
   
-  if (isFormat1 && step.Result && step.Result.Value) {
+  if (resultValue) {
     try {
-      stepInfo.searchResults = JSON.parse(step.Result.Value);
+      stepInfo.searchResults = JSON.parse(resultValue);
+      // Add the parsed results as output for common display
+      stepInfo.output = stepInfo.searchResults;
     } catch (e) {
       console.error('Error parsing DataSearch results:', e);
       stepInfo.error = 'Error parsing search results: ' + e.message;
-      stepInfo.rawData = step.Result.Value;
+      stepInfo.rawData = resultValue;
+      // Add the raw data as output for common display
+      stepInfo.output = resultValue;
     }
-  } else if (!isFormat1 && step.result && step.result.value) {
-    try {
-      stepInfo.searchResults = JSON.parse(step.result.value);
-    } catch (e) {
-      console.error('Error parsing DataSearch results:', e);
-      stepInfo.error = 'Error parsing search results: ' + e.message;
-      stepInfo.rawData = step.result.value;
+  }
+  
+  // Try to extract query from inputs
+  const inputs = isFormat1 ? step.Input : step.input;
+  if (inputs && inputs.length > 0) {
+    const queryValue = isFormat1 ? inputs[0]?.Value : inputs[0]?.value;
+    if (queryValue) {
+      stepInfo.input = queryValue;
     }
   }
   
   return stepInfo;
+}
+
+/**
+ * Extract input for a step
+ * @param {object} step - The step data 
+ * @param {boolean} isFormat1 - Whether the log is in format 1
+ * @returns {string|Array|null} - The extracted input or null if none
+ */
+export function extractStepInput(step, isFormat1) {
+  const inputs = isFormat1 ? step.Input : step.input;
+  
+  if (inputs && Array.isArray(inputs) && inputs.length > 0) {
+    // If inputs is an array, get the values
+    const inputValues = inputs.map(input => isFormat1 ? input.Value : input.value).filter(Boolean);
+    return inputValues.length === 1 ? inputValues[0] : inputValues.length > 1 ? inputValues : null;
+  }
+  
+  // Some steps might have input in different properties
+  return null;
+}
+
+/**
+ * Extract output/response for a step
+ * @param {object} step - The step data
+ * @param {boolean} isFormat1 - Whether the log is in format 1
+ * @returns {string|object|null} - The extracted output or null if none
+ */
+export function extractStepOutput(step, isFormat1) {
+  // Check for Result/result which is common for many steps
+  const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
+  if (resultValue) return resultValue;
+  
+  // Check for Output/output array
+  const outputs = isFormat1 ? step.Output : step.output;
+  if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+    const outputValues = outputs.map(output => isFormat1 ? output.Value : output.value).filter(Boolean);
+    return outputValues.length === 1 ? outputValues[0] : outputValues.length > 1 ? outputValues : null;
+  }
+  
+  // Check for DebugInformation which might contain response
+  const debugInfo = isFormat1 ? step.DebugInformation : step.debugInformation;
+  if (debugInfo?.response) return debugInfo.response;
+  
+  return null;
 }
 
 /**
@@ -452,27 +579,52 @@ export function parseDataSearchStep(step, isFormat1) {
  * @returns {object} - Parsed step data specific to the step type
  */
 export function parseStepByType(step, stepType, isFormat1) {
+  // First get type-specific data
+  let stepData = {};
+  
   switch(stepType) {
     case StepType.INPUT:
-      return parseInputStep(step, isFormat1);
+      stepData = parseInputStep(step, isFormat1);
+      break;
     case StepType.OUTPUT:
-      return parseOutputStep(step, isFormat1);
+      stepData = parseOutputStep(step, isFormat1);
+      break;
     case StepType.MEMORY_LOAD:
-      return parseMemoryLoadStep(step, isFormat1);
+      stepData = parseMemoryLoadStep(step, isFormat1);
+      break;
     case StepType.MEMORY_STORE:
-      return parseMemoryStoreStep(step, isFormat1);
+      stepData = parseMemoryStoreStep(step, isFormat1);
+      break;
     case StepType.PYTHON:
-      return parsePythonStep(step, isFormat1);
+      stepData = parsePythonStep(step, isFormat1);
+      break;
     case StepType.AI_OPERATION:
-      return parseAIOperationStep(step, isFormat1);
+      stepData = parseAIOperationStep(step, isFormat1);
+      break;
     case StepType.API_TOOL:
     case StepType.WEB_API:
-      return parseAPIToolStep(step, isFormat1);
+      stepData = parseAPIToolStep(step, isFormat1);
+      break;
     case StepType.DATA_SEARCH:
-      return parseDataSearchStep(step, isFormat1);
+      stepData = parseDataSearchStep(step, isFormat1);
+      break;
     default:
-      return {}; // Return empty object for unknown step types
+      // Return empty object for unknown step types
+      break;
   }
+  
+  // Try to extract input and output for all step types if not already captured
+  if (!stepData.input) {
+    const input = extractStepInput(step, isFormat1);
+    if (input) stepData.input = input;
+  }
+  
+  if (!stepData.output && !stepData.response) {
+    const output = extractStepOutput(step, isFormat1);
+    if (output) stepData.output = output;
+  }
+  
+  return stepData;
 }
 
 /**

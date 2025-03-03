@@ -68,13 +68,7 @@ export function renderAIOperationStep(step) {
     html += "<tr><th>Tool Calls:</th><td>" + renderToolCalls(step.tools, step.id) + "</td></tr>";
   }
   
-  // Add response if available
-  if (step.response) {
-    // Sanitize response to prevent syntax errors
-    let safeResponse = sanitizeString(step.response);
-    
-    html += "<tr><th>Response:</th><td class=\"response\">" + safeResponse + "</td></tr>";
-  }
+  // Note: Response will be shown by the common renderStepOutput function
   
   return html;
 }
