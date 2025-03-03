@@ -17,7 +17,7 @@ triggers = { crons = [] } # Add cron triggers if needed
 # Environment configurations
 [env.production]
 name = "agent-execution-log-parser"
-route = { pattern = "agent-execution-log-parser.david-pacold.workers.dev", custom_domain = false }
+# No custom route - will use the default workers.dev subdomain
 # account_id is set via CLOUDFLARE_ACCOUNT_ID environment variable during deployment
 
 # Environment variables for production
@@ -29,10 +29,7 @@ MAX_LOG_SIZE_MB = "10"
 [env.preview]
 name = "agent-execution-log-parser-preview"
 # account_id is set via CLOUDFLARE_ACCOUNT_ID environment variable during deployment
-# Modern routing configuration for preview environment
-# routes = [
-#   { pattern = "preview.agent-execution-log-parser.david-pacold.workers.dev/*", zone_name = "david-pacold.workers.dev" }
-# ]
+# Separate worker for the preview environment
 
 # Environment variables for preview
 [env.preview.vars]
