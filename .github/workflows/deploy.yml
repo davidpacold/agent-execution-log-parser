@@ -146,18 +146,22 @@ jobs:
         with:
           github-token: ${{ github.token }}
           script: |
-            const previewUrl = `https://agent-execution-log-parser-preview.david-pacold.workers.dev`;
+            const previewUrl = "https://agent-execution-log-parser-preview.david-pacold.workers.dev";
             const timestamp = new Date().toISOString();
             const sha = process.env.GITHUB_SHA.substring(0, 7);
+            
+            const body = [
+              `✅ Preview deployment is available at: [${previewUrl}](${previewUrl})`,
+              "",
+              "### Changes Overview",
+              "- **Environment:** Preview",
+              `- **Deployment Time:** ${timestamp}`,
+              `- **Version:** ${sha}`
+            ].join("\n");
             
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `✅ Preview deployment is available at: [${previewUrl}](${previewUrl})
-              
-### Changes Overview
-- **Environment:** Preview
-- **Deployment Time:** ${timestamp}
-- **Version:** ${sha}`
+              body: body
             });
