@@ -1,29 +1,69 @@
 /**
  * Core log parsing functionality
+ * @module log-parser
  */
 import { formatDateTime } from './formatters.js';
+
+// Maximum file size to process (10MB)
+export const MAX_LOG_SIZE = 10 * 1024 * 1024;
+
+/**
+ * Step types supported by the parser
+ * @enum {string}
+ */
+export const StepType = {
+  INPUT: 'InputStep',
+  OUTPUT: 'OutputStep',
+  MEMORY_LOAD: 'MemoryLoadStep',
+  MEMORY_STORE: 'MemoryStoreStep',
+  PYTHON: 'PythonStep',
+  AI_OPERATION: 'AIOperation',
+  API_TOOL: 'APIToolStep',
+  WEB_API: 'WebAPIPluginStep',
+  DATA_SEARCH: 'DataSearch'
+};
+
+/**
+ * Log format types
+ * @enum {string}
+ */
+export const LogFormat = {
+  /** Traditional format with StepsExecutionContext */
+  STANDARD: 'STANDARD',
+  /** Direct format with step IDs as keys */
+  DIRECT: 'DIRECT',
+  /** Unknown format */
+  UNKNOWN: 'UNKNOWN'
+};
 
 /**
  * Detect the format of log data
  * @param {object} logData - The log data to analyze
- * @returns {object} - Format info with stepsData, isFormat1, and isFormat2 flags
+ * @returns {object} - Format info with stepsData, format, and format flags
  */
 export function detectLogFormat(logData) {
   let stepsData = null;
+  let format = LogFormat.UNKNOWN;
   let isFormat1 = false;
   let isFormat2 = false;
   
+  if (!logData) {
+    return { stepsData, format, isFormat1, isFormat2 };
+  }
+  
   if (logData.StepsExecutionContext) {
     stepsData = logData.StepsExecutionContext;
+    format = LogFormat.STANDARD;
     isFormat1 = true;
   } else if (Object.keys(logData).length > 0 && 
            logData[Object.keys(logData)[0]]?.stepId && 
            logData[Object.keys(logData)[0]]?.stepType) {
     stepsData = logData;
+    format = LogFormat.DIRECT;
     isFormat2 = true;
   }
   
-  return { stepsData, isFormat1, isFormat2 };
+  return { stepsData, format, isFormat1, isFormat2 };
 }
 
 /**
@@ -386,16 +426,119 @@ export function parseDataSearchStep(step, isFormat1) {
       stepInfo.searchResults = JSON.parse(step.Result.Value);
     } catch (e) {
       console.error('Error parsing DataSearch results:', e);
+      stepInfo.error = 'Error parsing search results: ' + e.message;
+      stepInfo.rawData = step.Result.Value;
     }
   } else if (!isFormat1 && step.result && step.result.value) {
     try {
       stepInfo.searchResults = JSON.parse(step.result.value);
     } catch (e) {
       console.error('Error parsing DataSearch results:', e);
+      stepInfo.error = 'Error parsing search results: ' + e.message;
+      stepInfo.rawData = step.result.value;
     }
   }
   
   return stepInfo;
+}
+
+/**
+ * Handle parsing for a specific step type
+ * @param {object} step - The step data
+ * @param {string} stepType - The type of step
+ * @param {boolean} isFormat1 - Whether the log is in format 1
+ * @returns {object} - Parsed step data specific to the step type
+ */
+export function parseStepByType(step, stepType, isFormat1) {
+  switch(stepType) {
+    case StepType.INPUT:
+      return parseInputStep(step, isFormat1);
+    case StepType.OUTPUT:
+      return parseOutputStep(step, isFormat1);
+    case StepType.MEMORY_LOAD:
+      return parseMemoryLoadStep(step, isFormat1);
+    case StepType.MEMORY_STORE:
+      return parseMemoryStoreStep(step, isFormat1);
+    case StepType.PYTHON:
+      return parsePythonStep(step, isFormat1);
+    case StepType.AI_OPERATION:
+      return parseAIOperationStep(step, isFormat1);
+    case StepType.API_TOOL:
+    case StepType.WEB_API:
+      return parseAPIToolStep(step, isFormat1);
+    case StepType.DATA_SEARCH:
+      return parseDataSearchStep(step, isFormat1);
+    default:
+      return {}; // Return empty object for unknown step types
+  }
+}
+
+/**
+ * Find input and output information for summary
+ * @param {object} stepsData - The steps data to analyze
+ * @param {boolean} isFormat1 - Whether the log is in format 1
+ * @returns {object} - Input, output and success information
+ */
+export function findInputAndOutput(stepsData, isFormat1) {
+  let userInput = '';
+  let inputStepIds = [];
+  let outputStepIds = [];
+  let overallSuccess = true;
+  
+  for (const stepId in stepsData) {
+    const step = stepsData[stepId];
+    const stepType = isFormat1 ? step.StepType : step.stepType;
+    
+    if (!step.success) {
+      overallSuccess = false;
+    }
+    
+    if (stepType === StepType.INPUT) {
+      inputStepIds.push(stepId);
+      const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
+      if (resultValue) {
+        userInput = resultValue;
+      }
+    } else if (stepType === StepType.OUTPUT) {
+      outputStepIds.push(stepId);
+    }
+  }
+  
+  return {
+    userInput,
+    inputStepIds,
+    outputStepIds,
+    overallSuccess
+  };
+}
+
+/**
+ * Find the final output from the parsed steps
+ * @param {Array} steps - The parsed steps
+ * @returns {string} - The final output
+ */
+export function findFinalOutput(steps) {
+  let finalOutput = '';
+  
+  // First try to get from the last OutputStep
+  const outputSteps = steps.filter(step => step.type === StepType.OUTPUT);
+  if (outputSteps.length > 0) {
+    const lastOutputStep = outputSteps[outputSteps.length - 1];
+    if (lastOutputStep.output) {
+      finalOutput = lastOutputStep.output;
+    }
+  }
+  
+  // If no output found, try the last AIOperation response
+  if (!finalOutput) {
+    const aiSteps = steps.filter(step => step.type === StepType.AI_OPERATION && step.response);
+    if (aiSteps.length > 0) {
+      const lastAIStep = aiSteps[aiSteps.length - 1];
+      finalOutput = lastAIStep.response || '';
+    }
+  }
+  
+  return finalOutput;
 }
 
 /**
@@ -405,7 +548,7 @@ export function parseDataSearchStep(step, isFormat1) {
  */
 export function parseLogData(logData) {
   // Detect the format of the log data
-  const { stepsData, isFormat1, isFormat2 } = detectLogFormat(logData);
+  const { stepsData, format, isFormat1, isFormat2 } = detectLogFormat(logData);
   
   if (!stepsData) {
     console.error('Unknown log format');
@@ -422,32 +565,8 @@ export function parseLogData(logData) {
     };
   }
   
-  // Find input and output steps for summary
-  let userInput = '';
-  let finalOutput = '';
-  let inputStepIds = [];
-  let outputStepIds = [];
-  let overallSuccess = true;
-  
-  // First, identify input and output steps and overall success
-  for (const stepId in stepsData) {
-    const step = stepsData[stepId];
-    const stepType = isFormat1 ? step.StepType : step.stepType;
-    
-    if (!step.success) {
-      overallSuccess = false;
-    }
-    
-    if (stepType === 'InputStep') {
-      inputStepIds.push(stepId);
-      const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
-      if (resultValue) {
-        userInput = resultValue;
-      }
-    } else if (stepType === 'OutputStep') {
-      outputStepIds.push(stepId);
-    }
-  }
+  // Find input, output and success information
+  const { userInput, overallSuccess } = findInputAndOutput(stepsData, isFormat1);
   
   // Get execution metadata
   const metadata = parseExecutionMetadata(logData, isFormat1, isFormat2, stepsData);
@@ -461,11 +580,11 @@ export function parseLogData(logData) {
       duration: metadata.duration,
       startedAt: metadata.startTime ? formatDateTime(metadata.startTime) : 'N/A',
       finishedAt: metadata.endTime ? formatDateTime(metadata.endTime) : 'N/A',
-      format: isFormat1 ? 'Standard' : 'Direct',
+      format: format,
     },
     summary: {
       userInput: userInput,
-      finalOutput: finalOutput,
+      finalOutput: '', // Will be set after steps are parsed and sorted
     },
     steps: [],
     errors: [],
@@ -478,27 +597,11 @@ export function parseLogData(logData) {
     // Extract common fields based on format
     const stepInfo = parseStepCommon(step, isFormat1);
     
-    // Get the appropriate step type (handling case sensitivity differences)
+    // Get the appropriate step type
     const stepType = stepInfo.type;
     
     // Add step-specific data based on step type
-    if (stepType === 'InputStep') {
-      Object.assign(stepInfo, parseInputStep(step, isFormat1));
-    } else if (stepType === 'OutputStep') {
-      Object.assign(stepInfo, parseOutputStep(step, isFormat1));
-    } else if (stepType === 'MemoryLoadStep') {
-      Object.assign(stepInfo, parseMemoryLoadStep(step, isFormat1));
-    } else if (stepType === 'MemoryStoreStep') {
-      Object.assign(stepInfo, parseMemoryStoreStep(step, isFormat1));
-    } else if (stepType === 'PythonStep') {
-      Object.assign(stepInfo, parsePythonStep(step, isFormat1));
-    } else if (stepType === 'AIOperation') {
-      Object.assign(stepInfo, parseAIOperationStep(step, isFormat1));
-    } else if (stepType === 'APIToolStep' || stepType === 'WebAPIPluginStep') {
-      Object.assign(stepInfo, parseAPIToolStep(step, isFormat1));
-    } else if (stepType === 'DataSearch') {
-      Object.assign(stepInfo, parseDataSearchStep(step, isFormat1));
-    }
+    Object.assign(stepInfo, parseStepByType(step, stepType, isFormat1));
     
     // Add error information if present
     const exceptionMessage = isFormat1 ? step.ExceptionMessage : step.exceptionMessage;
@@ -521,23 +624,8 @@ export function parseLogData(logData) {
     return dateA - dateB;
   });
   
-  // Now that steps are sorted, find the final output from the last OutputStep
-  const outputSteps = result.steps.filter(step => step.type === 'OutputStep');
-  if (outputSteps.length > 0) {
-    const lastOutputStep = outputSteps[outputSteps.length - 1];
-    if (lastOutputStep.output) {
-      result.summary.finalOutput = lastOutputStep.output;
-    }
-  }
-  
-  // If we couldn't find the output from OutputStep, try the last AIOperation response
-  if (!result.summary.finalOutput) {
-    const aiSteps = result.steps.filter(step => step.type === 'AIOperation' && step.response);
-    if (aiSteps.length > 0) {
-      const lastAIStep = aiSteps[aiSteps.length - 1];
-      result.summary.finalOutput = lastAIStep.response || '';
-    }
-  }
+  // Now that steps are sorted, find the final output
+  result.summary.finalOutput = findFinalOutput(result.steps);
   
   return result;
 }

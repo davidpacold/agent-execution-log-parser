@@ -1,16 +1,41 @@
 {
 	"name": "agent-execution-log-parser",
-	"version": "0.0.0",
+	"version": "1.0.0",
+	"description": "A web-based tool to parse and visualize Airia Agent execution logs",
 	"private": true,
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
-		"test": "vitest"
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
+		"lint": "echo 'No linter configured yet'",
+		"format": "prettier --write 'src/**/*.{js,css}'",
+		"deploy:prod": "wrangler deploy --env production",
+		"deploy:preview": "wrangler deploy --env preview"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.6.4",
 		"vitest": "~2.1.9",
-		"wrangler": "^3.110.0"
-	}
+		"wrangler": "^3.110.0",
+		"prettier": "^3.0.0"
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/davidpacold/agent-execution-log-parser.git"
+	},
+	"keywords": [
+		"agent",
+		"log",
+		"parser",
+		"cloudflare",
+		"worker",
+		"visualization"
+	],
+	"author": "David Pacold",
+	"license": "MIT"
 }

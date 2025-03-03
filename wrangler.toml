@@ -2,13 +2,32 @@ name = "agent-execution-log-parser"
 main = "src/index.js"
 compatibility_date = "2024-02-26"
 
+# Memory and CPU limits
+usage_model = "bundled"
+compatibility_flags = ["nodejs_compat"]
+
+# Routes configuration
+# routes = [
+#  { pattern = "example.com/api/logs", zone_name = "example.com" }
+# ]
+
 # Environment configurations
 [env.production]
 name = "agent-execution-log-parser"
+# workers_dev = true
 
 [env.preview]
 name = "agent-execution-log-parser-preview"
+# workers_dev = true
 
-# wrangler.toml (wrangler v3.88.0^)
+# Observability configuration
 [observability]
 enabled = true
+
+# Add variables if needed
+# [vars]
+# API_KEY = "default-placeholder-key"
+
+# Custom domains
+# [env.production.routes]
+# custom_domain = "logs.example.com"

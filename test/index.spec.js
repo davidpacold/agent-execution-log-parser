@@ -1,20 +1,213 @@
 import { env, createExecutionContext, waitOnExecutionContext, SELF } from 'cloudflare:test';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import worker from '../src';
+import { parseLogData } from '../src/lib/log-parser';
+import { formatDateTime } from '../src/lib/formatters';
 
-describe('Hello World worker', () => {
-	it('responds with Hello World! (unit style)', async () => {
-		const request = new Request('http://example.com');
-		// Create an empty context to pass to `worker.fetch()`.
-		const ctx = createExecutionContext();
-		const response = await worker.fetch(request, env, ctx);
-		// Wait for all `Promise`s passed to `ctx.waitUntil()` to settle before running test assertions
-		await waitOnExecutionContext(ctx);
-		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
-	});
+// Mock log data for testing
+const mockStandardFormat = {
+  StepsExecutionContext: {
+    "step1": {
+      StepId: "step1",
+      StepType: "InputStep",
+      success: true,
+      TimeTrackingData: {
+        startedAt: "2023-01-01T10:00:00.000Z",
+        finishedAt: "2023-01-01T10:00:01.000Z",
+        duration: "1000ms"
+      },
+      Result: {
+        Value: "Test input"
+      }
+    },
+    "step2": {
+      StepId: "step2",
+      StepType: "OutputStep",
+      success: true,
+      TimeTrackingData: {
+        startedAt: "2023-01-01T10:00:02.000Z",
+        finishedAt: "2023-01-01T10:00:03.000Z",
+        duration: "1000ms"
+      },
+      Input: [
+        {
+          Value: "Test output"
+        }
+      ]
+    }
+  },
+  ExecutionId: "test-execution",
+  UserId: "test-user",
+  ProjectId: "test-project",
+  Success: true,
+  TimeTrackingData: {
+    startedAt: "2023-01-01T10:00:00.000Z",
+    finishedAt: "2023-01-01T10:00:03.000Z",
+    duration: "3000ms"
+  }
+};
 
-	it('responds with Hello World! (integration style)', async () => {
-		const response = await SELF.fetch('http://example.com');
-		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
-	});
+const mockDirectFormat = {
+  "step1": {
+    stepId: "step1",
+    stepType: "InputStep",
+    success: true,
+    timeTrackingData: {
+      startedAt: "2023-01-01T10:00:00.000Z",
+      finishedAt: "2023-01-01T10:00:01.000Z",
+      duration: "1000ms"
+    },
+    result: {
+      value: "Test input"
+    }
+  },
+  "step2": {
+    stepId: "step2",
+    stepType: "OutputStep",
+    success: true,
+    timeTrackingData: {
+      startedAt: "2023-01-01T10:00:02.000Z",
+      finishedAt: "2023-01-01T10:00:03.000Z",
+      duration: "1000ms"
+    },
+    input: [
+      {
+        value: "Test output"
+      }
+    ]
+  }
+};
+
+describe('Worker responses', () => {
+  let ctx;
+  
+  beforeEach(() => {
+    ctx = createExecutionContext();
+  });
+  
+  it('serves HTML UI for GET requests', async () => {
+    const request = new Request('http://example.com');
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+    
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/html');
+    
+    const text = await response.text();
+    expect(text).toContain('<!DOCTYPE html>');
+    expect(text).toContain('Agent Execution Log Parser');
+  });
+
+  it('handles POST requests with log data', async () => {
+    const request = new Request('http://example.com', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(mockStandardFormat)
+    });
+    
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+    
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('application/json');
+    
+    const result = await response.json();
+    expect(result.overview.success).toBe(true);
+    expect(result.overview.executionId).toBe('test-execution');
+    expect(result.steps.length).toBe(2);
+  });
+
+  it('handles CORS preflight requests', async () => {
+    const request = new Request('http://example.com', {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': 'http://example.com',
+        'Access-Control-Request-Method': 'POST'
+      }
+    });
+    
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+    
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(response.headers.get('Access-Control-Allow-Methods')).toContain('POST');
+  });
+  
+  it('handles invalid JSON with appropriate error', async () => {
+    const request = new Request('http://example.com', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: '{ invalid json }'
+    });
+    
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+    
+    expect(response.status).toBe(400);
+    
+    const result = await response.json();
+    expect(result.error).toContain('Parsing error');
+  });
+});
+
+describe('Log Parser', () => {
+  it('correctly parses standard format logs', () => {
+    const result = parseLogData(mockStandardFormat);
+    
+    expect(result.overview.success).toBe(true);
+    expect(result.overview.executionId).toBe('test-execution');
+    expect(result.overview.format).toBe('STANDARD');
+    expect(result.summary.userInput).toBe('Test input');
+    expect(result.summary.finalOutput).toBe('Test output');
+    expect(result.steps.length).toBe(2);
+    
+    // Check step details
+    const inputStep = result.steps.find(s => s.type === 'InputStep');
+    const outputStep = result.steps.find(s => s.type === 'OutputStep');
+    
+    expect(inputStep.input).toBe('Test input');
+    expect(outputStep.output).toBe('Test output');
+  });
+  
+  it('correctly parses direct format logs', () => {
+    const result = parseLogData(mockDirectFormat);
+    
+    expect(result.overview.success).toBe(true);
+    expect(result.overview.format).toBe('DIRECT');
+    expect(result.summary.userInput).toBe('Test input');
+    expect(result.summary.finalOutput).toBe('Test output');
+    expect(result.steps.length).toBe(2);
+  });
+  
+  it('handles unknown log formats', () => {
+    const result = parseLogData({ randomData: true });
+    
+    expect(result.overview.success).toBe(false);
+    expect(result.overview.error).toBe('Unknown log format');
+    expect(result.steps.length).toBe(0);
+    expect(result.errors.length).toBe(1);
+  });
+});
+
+describe('Formatters', () => {
+  it('formats date-time strings correctly', () => {
+    const date = new Date('2023-01-01T12:34:56.789Z');
+    const formatted = formatDateTime(date);
+    
+    expect(formatted).toContain('2023-01-01');
+    expect(formatted).toContain('12:34:56');
+  });
+  
+  it('handles invalid dates', () => {
+    const formatted = formatDateTime(null);
+    expect(formatted).toBe('N/A');
+    
+    const invalidFormatted = formatDateTime('not-a-date');
+    expect(invalidFormatted).toBe('N/A');
+  });
 });
