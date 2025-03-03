@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2025-03-03
+
+### Fixed
+- Removed references to `process.env` which is not available in Cloudflare Workers
+- Fixed environment variable handling to use Cloudflare's env parameter
+- Updated hardcoded API version to match package version
+
 ## [1.0.2] - 2025-03-03
 
 ### Fixed

@@ -23,7 +23,7 @@ route = { pattern = "agent-execution-log-parser.david-pacold.workers.dev", custo
 # Environment variables for production
 [env.production.vars]
 ENVIRONMENT = "production"
-API_VERSION = "1.0.2"
+API_VERSION = "1.0.3"
 MAX_LOG_SIZE_MB = "10"
 
 [env.preview]
@@ -37,7 +37,7 @@ name = "agent-execution-log-parser-preview"
 # Environment variables for preview
 [env.preview.vars]
 ENVIRONMENT = "preview"
-API_VERSION = "1.0.2"
+API_VERSION = "1.0.3"
 MAX_LOG_SIZE_MB = "10"
 
 # Observability configuration
