@@ -147,6 +147,9 @@ jobs:
           github-token: ${{ github.token }}
           script: |
             const previewUrl = `https://agent-execution-log-parser-preview.david-pacold.workers.dev`;
+            const timestamp = new Date().toISOString();
+            const sha = process.env.GITHUB_SHA.substring(0, 7);
+            
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -155,6 +158,6 @@ jobs:
               
 ### Changes Overview
 - **Environment:** Preview
-- **Deployment Time:** ${new Date().toISOString()}
-- **Version:** ${process.env.GITHUB_SHA.slice(0, 7)}`
+- **Deployment Time:** ${timestamp}
+- **Version:** ${sha}`
             });
