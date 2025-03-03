@@ -9,6 +9,7 @@ import { renderAIOperationStep } from './step-renderers/ai-operation-step.js';
 import { renderAPIToolStep } from './step-renderers/api-tool-step.js';
 import { renderDataSearchStep } from './step-renderers/data-search-step.js';
 import { renderRouterStep } from './step-renderers/router-step.js';
+import { renderExecutePipelineStep } from './step-renderers/execute-pipeline-step.js';
 import { sanitizeString } from '../../lib/formatters.js';
 
 /**
@@ -20,6 +21,7 @@ function renderStepCommon(step) {
   return "<table class=\"table table-sm\">" +
     "<tr><th style=\"width: 150px;\">Step ID:</th><td>" + step.id + "</td></tr>" +
     "<tr><th>Type:</th><td>" + step.type + "</td></tr>" +
+    "<tr><th>Status:</th><td>" + (step.success ? "<span class=\"text-success\">Success</span>" : "<span class=\"text-danger\">Failed</span>") + "</td></tr>" +
     "<tr><th>Duration:</th><td>" + step.duration + "</td></tr>" +
     "<tr><th>Started:</th><td>" + step.startedAt + "</td></tr>" +
     "<tr><th>Finished:</th><td>" + step.finishedAt + "</td></tr>";
@@ -96,7 +98,15 @@ function renderStepOutput(step) {
 function renderStep(step, index) {
   const stepType = step.type || "Unknown";
   
-  let html = "<div class=\"accordion-item\">" +
+  // Create a data attribute string with step properties for debugging
+  let dataAttrs = `data-step-type="${stepType}" data-step-id="${step.id}"`;
+  
+  // Add additional data attributes for special step types
+  if (stepType === 'RouterStep') {
+    dataAttrs += ` data-has-model="${!!step.modelName}" data-has-route="${!!step.routeDecision}" data-has-branches="${!!step.branchIds}"`;
+  }
+  
+  let html = "<div class=\"accordion-item\" " + dataAttrs + ">" +
     "<h2 class=\"accordion-header\">" +
     "<button class=\"accordion-button collapsed\" type=\"button\" data-bs-toggle=\"collapse\" data-bs-target=\"#collapse" + index + "\" " +
     "aria-expanded=\"false\" aria-controls=\"collapse" + index + "\">" +
@@ -115,18 +125,36 @@ function renderStep(step, index) {
   // Add type-specific content
   if (stepType === "InputStep") {
     tableHtml += renderInputStep(step);
+    console.log(`Rendered InputStep content added`);
   } else if (stepType === "OutputStep") {
     tableHtml += renderOutputStep(step);
+    console.log(`Rendered OutputStep content added`);
   } else if (stepType === "MemoryLoadStep" || stepType === "MemoryStoreStep") {
     tableHtml += renderMemoryStep(step);
+    console.log(`Rendered MemoryStep content added`);
   } else if (stepType === "PythonStep") {
     tableHtml += renderPythonStep(step);
+    console.log(`Rendered PythonStep content added`);
   } else if (stepType === "AIOperation") {
     tableHtml += renderAIOperationStep(step);
+    console.log(`Rendered AIOperation content added`);
   } else if (stepType === "APIToolStep" || stepType === "WebAPIPluginStep") {
     tableHtml += renderAPIToolStep(step);
+    console.log(`Rendered APIToolStep content added`);
   } else if (stepType === "RouterStep") {
-    tableHtml += renderRouterStep(step);
+    console.log(`About to render RouterStep specific content...`);
+    const routerHtml = renderRouterStep(step);
+    console.log(`RouterStep content to add: "${routerHtml}"`);
+    tableHtml += routerHtml;
+    console.log(`Added RouterStep content`);
+  } else if (stepType === "ExecutePipelineStep") {
+    console.log(`About to render ExecutePipelineStep specific content...`);
+    const pipelineHtml = renderExecutePipelineStep(step);
+    console.log(`ExecutePipelineStep content to add: "${pipelineHtml}"`);
+    tableHtml += pipelineHtml;
+    console.log(`Added ExecutePipelineStep content`);
+  } else {
+    console.log(`No specific renderer for step type: ${stepType}`);
   }
   
   // Add output if present (for all step types)
@@ -166,9 +194,39 @@ export function renderSteps(steps) {
     return "<div class=\"alert alert-info\">No execution steps found.</div>";
   }
   
+  // Debug log for steps being rendered
+  console.log("Rendering steps:", JSON.stringify(steps.map(s => ({
+    id: s.id,
+    type: s.type,
+    hasInput: !!s.input,
+    hasOutput: !!(s.output || s.response),
+    routeDecision: s.routeDecision,
+    modelName: s.modelName,
+    branchIds: s.branchIds,
+    tokens: s.tokens
+  })), null, 2));
+  
   let html = "<div class=\"accordion\" id=\"stepsAccordion\">";
   
   steps.forEach((step, index) => {
+    console.log(`\nRendering step ${index + 1}: ${step.type}`);
+    
+    // Debug log for specific step types
+    if (step.type === 'RouterStep') {
+      console.log("RouterStep details:", JSON.stringify({
+        modelName: step.modelName,
+        modelProvider: step.modelProvider,
+        tokens: step.tokens,
+        routeDecision: step.routeDecision,
+        branchIds: step.branchIds
+      }, null, 2));
+      
+      // Log what the router renderer would produce
+      const routerHtml = renderRouterStep(step);
+      console.log("RouterStep rendered HTML:", routerHtml);
+    }
+    
+    // Add the rendered step
     html += renderStep(step, index);
   });
   

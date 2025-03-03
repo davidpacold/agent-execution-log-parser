@@ -23,7 +23,8 @@ export const StepType = {
   API_TOOL: 'APIToolStep',
   WEB_API: 'WebAPIPluginStep',
   DATA_SEARCH: 'DataSearch',
-  ROUTER: 'RouterStep'
+  ROUTER: 'RouterStep',
+  EXECUTE_PIPELINE: 'ExecutePipelineStep'
 };
 
 /**
@@ -529,6 +530,33 @@ export function parseDataSearchStep(step, isFormat1) {
 }
 
 /**
+ * Parse an execute pipeline step
+ * @param {object} step - The step data 
+ * @param {boolean} isFormat1 - Whether the log is in format 1
+ * @returns {object} - The parsed execute pipeline step data
+ */
+export function parseExecutePipelineStep(step, isFormat1) {
+  const stepInfo = {};
+  console.log("Parsing ExecutePipelineStep:", step.StepId || step.stepId);
+  
+  // Parse result value
+  const resultValue = isFormat1 ? step.Result?.Value : step.result?.value;
+  if (resultValue) {
+    stepInfo.output = resultValue;
+    console.log("ExecutePipelineStep output found:", typeof resultValue);
+  }
+  
+  // Parse input value
+  const inputs = isFormat1 ? step.Input : step.input;
+  if (inputs && inputs.length > 0) {
+    stepInfo.input = inputs;
+    console.log("ExecutePipelineStep input found:", typeof inputs);
+  }
+  
+  return stepInfo;
+}
+
+/**
  * Extract input for a step
  * @param {object} step - The step data 
  * @param {boolean} isFormat1 - Whether the log is in format 1
@@ -643,6 +671,8 @@ export function parseStepByType(step, stepType, isFormat1) {
   // First get type-specific data
   let stepData = {};
   
+  console.log(`Parsing step type: ${stepType}`);
+  
   switch(stepType) {
     case StepType.INPUT:
       stepData = parseInputStep(step, isFormat1);
@@ -672,8 +702,11 @@ export function parseStepByType(step, stepType, isFormat1) {
     case StepType.ROUTER:
       stepData = parseRouterStep(step, isFormat1);
       break;
+    case StepType.EXECUTE_PIPELINE:
+      stepData = parseExecutePipelineStep(step, isFormat1);
+      break;
     default:
-      // Return empty object for unknown step types
+      console.log(`No specific parser for step type: ${stepType}`);
       break;
   }
   
