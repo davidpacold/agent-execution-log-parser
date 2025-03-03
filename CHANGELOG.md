@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - GitHub Actions deployment workflow using direct Wrangler commands
 - API token validation using CLOUDFLARE_API_TOKEN secret
+- Added CLOUDFLARE_ACCOUNT_ID secret validation and usage
+- Removed hardcoded account IDs from configuration
+- Fixed environment variables inheritance in wrangler.toml
 - Removed deprecated Wrangler config command
 - Improved error handling in CI/CD pipeline
 

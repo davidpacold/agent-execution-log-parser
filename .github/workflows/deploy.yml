@@ -74,14 +74,20 @@ jobs:
         run: |
           echo "Deploying to production environment..."
           
-          # Verify token exists
+          # Verify credentials exist
           if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
             echo "Error: Cloudflare API Token is not set in repository secrets. Please add CLOUDFLARE_API_TOKEN"
             exit 1
           fi
           
-          # Set Cloudflare API token
+          if [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "Error: Cloudflare Account ID is not set in repository secrets. Please add CLOUDFLARE_ACCOUNT_ID"
+            exit 1
+          fi
+          
+          # Set Cloudflare credentials
           export CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
+          export CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           
           # Run wrangler deploy
           npx wrangler deploy --env production
@@ -134,14 +140,20 @@ jobs:
         run: |
           echo "Deploying to preview environment..."
           
-          # Verify token exists
+          # Verify credentials exist
           if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
             echo "Error: Cloudflare API Token is not set in repository secrets. Please add CLOUDFLARE_API_TOKEN"
             exit 1
           fi
           
-          # Set Cloudflare API token
+          if [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "Error: Cloudflare Account ID is not set in repository secrets. Please add CLOUDFLARE_ACCOUNT_ID"
+            exit 1
+          fi
+          
+          # Set Cloudflare credentials
           export CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
+          export CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           
           # Run wrangler deploy
           npx wrangler deploy --env preview

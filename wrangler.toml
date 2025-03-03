@@ -18,23 +18,31 @@ triggers = { crons = [] } # Add cron triggers if needed
 [env.production]
 name = "agent-execution-log-parser"
 route = { pattern = "agent-execution-log-parser.david-pacold.workers.dev", custom_domain = false }
+# account_id is set via CLOUDFLARE_ACCOUNT_ID environment variable during deployment
+
+# Environment variables for production
+[env.production.vars]
+ENVIRONMENT = "production"
+API_VERSION = "1.0.2"
+MAX_LOG_SIZE_MB = "10"
 
 [env.preview]
 name = "agent-execution-log-parser-preview"
+# account_id is set via CLOUDFLARE_ACCOUNT_ID environment variable during deployment
 # Modern routing configuration for preview environment
 # routes = [
 #   { pattern = "preview.agent-execution-log-parser.david-pacold.workers.dev/*", zone_name = "david-pacold.workers.dev" }
 # ]
 
+# Environment variables for preview
+[env.preview.vars]
+ENVIRONMENT = "preview"
+API_VERSION = "1.0.2"
+MAX_LOG_SIZE_MB = "10"
+
 # Observability configuration
 [observability]
 enabled = true
-
-# Environment variables
-[vars]
-ENVIRONMENT = "production"
-API_VERSION = "1.0.1"
-MAX_LOG_SIZE_MB = "10"
 
 # Define secrets (secrets are never included in the code)
 # [secrets]
