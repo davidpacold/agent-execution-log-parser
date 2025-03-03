@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2025-03-03
+
+### Fixed
+- GitHub Actions deployment workflow using direct Wrangler commands
+- API token validation in deployment workflow
+- Improved error handling in CI/CD pipeline
+
 ## [1.0.1] - 2025-03-03
 
 ### Added
