@@ -35,9 +35,9 @@ function renderPythonIO(item) {
 export function renderPythonStep(step) {
   let html = "";
   
-  // Display Python inputs
+  // Display Python inputs (detailed view - the basic input is shown by renderStepInput)
   if (step.pythonInputs && step.pythonInputs.length > 0) {
-    html += "<tr><th>Inputs:</th><td class=\"python-io\">";
+    html += "<tr><th>Python Inputs:</th><td class=\"python-io\">";
     
     step.pythonInputs.forEach(input => {
       html += renderPythonIO(input);
@@ -46,9 +46,9 @@ export function renderPythonStep(step) {
     html += "</td></tr>";
   }
   
-  // Display Python output (Result)
+  // Display Python output (Result) - renamed to avoid conflict with common output display
   if (step.pythonOutput) {
-    html += "<tr><th>Output:</th><td class=\"python-io\">";
+    html += "<tr><th>Python Result:</th><td class=\"python-io\">";
     html += renderPythonIO(step.pythonOutput);
     html += "</td></tr>";
   }

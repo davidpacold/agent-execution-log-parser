@@ -366,6 +366,53 @@ export function renderHTML() {
               // Add step-specific data
               if (step.StepType === 'InputStep') {
                 stepInfo.input = step.Result?.Value || '';
+              } else if (step.StepType === 'OutputStep') {
+                // Capture output step data
+                if (step.Input && step.Input.length > 0) {
+                  stepInfo.output = step.Input[0]?.Value || '';
+                }
+              } else if (step.StepType === 'RouterStep') {
+                // Capture router step data
+                if (step.DebugInformation) {
+                  stepInfo.modelName = step.DebugInformation.modelDisplayName || step.DebugInformation.modelName || 'N/A';
+                  stepInfo.modelProvider = step.DebugInformation.modelProviderType || 'N/A';
+                  stepInfo.tokens = {
+                    input: step.DebugInformation.inputTokens || '0',
+                    output: step.DebugInformation.outputTokens || '0',
+                    total: step.DebugInformation.totalTokens || '0',
+                  };
+                  
+                  // Parse route decision if available
+                  if (step.DebugInformation.response) {
+                    try {
+                      stepInfo.routeDecision = JSON.parse(step.DebugInformation.response);
+                    } catch (e) {
+                      console.log("Failed to parse router response:", e);
+                      stepInfo.routeDecision = step.DebugInformation.response;
+                    }
+                  }
+                }
+                
+                // Get branch IDs if available
+                if (step.Result && step.Result.$type === 'branch' && step.Result.BranchIds) {
+                  stepInfo.branchIds = step.Result.BranchIds;
+                }
+                
+                // For input/output
+                if (step.Input && step.Input.length > 0) {
+                  stepInfo.input = step.Input[0]?.Value || '';
+                }
+                if (stepInfo.routeDecision) {
+                  stepInfo.output = stepInfo.routeDecision;
+                }
+              } else if (step.StepType === 'ExecutePipelineStep') {
+                // Capture execute pipeline step data
+                if (step.Result && step.Result.Value) {
+                  stepInfo.output = step.Result.Value;
+                }
+                if (step.Input && step.Input.length > 0) {
+                  stepInfo.input = step.Input[0]?.Value || step.Input;
+                }
               } else if (step.StepType === 'AIOperation') {
                 stepInfo.modelName = step.DebugInformation?.modelDisplayName || step.DebugInformation?.modelName || 'N/A';
                 stepInfo.modelProvider = step.DebugInformation?.modelProviderType || 'N/A';
@@ -374,6 +421,19 @@ export function renderHTML() {
                   output: step.DebugInformation?.outputTokens || '0',
                   total: step.DebugInformation?.totalTokens || '0',
                 };
+                
+                // For input/output
+                if (step.DebugInformation?.messages && step.DebugInformation.messages.length > 0) {
+                  const userMessages = step.DebugInformation.messages.filter(m => 
+                    (m.Role || m.role || '').toLowerCase() === 'user');
+                  if (userMessages.length > 0) {
+                    stepInfo.input = userMessages[0].TextContent || userMessages[0].textContent || '';
+                  }
+                }
+                
+                if (step.Result && step.Result.Value) {
+                  stepInfo.response = step.Result.Value;
+                }
               } else if (step.StepType === 'DataSearch') {
                 console.log("Processing DataSearch step");
                 // Parse DataSearch information
@@ -614,12 +674,84 @@ export function renderHTML() {
             
             html += '</table>';
           }
+          
+          // If it's a Router step, show more details
+          else if (step.type === 'RouterStep') {
+            html += '<h5>Router Information:</h5>';
+            html += '<table class="table">';
+            
+            // Model info if available
+            if (step.modelName) {
+              html += '<tr><th>Model Name</th><td>' + step.modelName + '</td></tr>';
+              html += '<tr><th>Model Provider</th><td>' + step.modelProvider + '</td></tr>';
+            }
+            
+            // Token info if available
+            if (step.tokens) {
+              html += '<tr><th>Input Tokens</th><td>' + step.tokens.input + '</td></tr>';
+              html += '<tr><th>Output Tokens</th><td>' + step.tokens.output + '</td></tr>';
+              html += '<tr><th>Total Tokens</th><td>' + step.tokens.total + '</td></tr>';
+            }
+            
+            // Route decision if available
+            if (step.routeDecision) {
+              html += '<tr><th>Route Decision</th><td>';
+              if (typeof step.routeDecision === 'string') {
+                html += step.routeDecision;
+              } else {
+                html += '<pre>' + JSON.stringify(step.routeDecision, null, 2) + '</pre>';
+              }
+              html += '</td></tr>';
+            }
+            
+            // Branch IDs if available
+            if (step.branchIds && step.branchIds.length > 0) {
+              html += '<tr><th>Branch IDs</th><td>';
+              html += '<ul>';
+              step.branchIds.forEach(id => {
+                html += '<li>' + id + '</li>';
+              });
+              html += '</ul>';
+              html += '</td></tr>';
+            }
+            
+            html += '</table>';
+          }
 
-          // Handle Input Step
-          if (step.type === 'InputStep' && step.input) {
+          // Show input for all steps
+          if (step.input) {
             html += '<div class="mt-3">';
             html += '<h5>Input:</h5>';
-            html += '<div class="alert alert-secondary">' + step.input + '</div>';
+            if (typeof step.input === 'string') {
+              html += '<div class="alert alert-secondary">' + step.input + '</div>';
+            } else if (Array.isArray(step.input)) {
+              html += '<ol class="alert alert-secondary">';
+              step.input.forEach(item => {
+                html += '<li>' + (typeof item === 'string' ? item : JSON.stringify(item)) + '</li>';
+              });
+              html += '</ol>';
+            } else {
+              html += '<div class="alert alert-secondary"><pre>' + JSON.stringify(step.input, null, 2) + '</pre></div>';
+            }
+            html += '</div>';
+          }
+          
+          // Show output for all steps
+          if (step.output || step.response) {
+            const output = step.output || step.response;
+            html += '<div class="mt-3">';
+            html += '<h5>Output:</h5>';
+            if (typeof output === 'string') {
+              html += '<div class="alert alert-info">' + output + '</div>';
+            } else if (Array.isArray(output)) {
+              html += '<ol class="alert alert-info">';
+              output.forEach(item => {
+                html += '<li>' + (typeof item === 'string' ? item : JSON.stringify(item)) + '</li>';
+              });
+              html += '</ol>';
+            } else {
+              html += '<div class="alert alert-info"><pre>' + JSON.stringify(output, null, 2) + '</pre></div>';
+            }
             html += '</div>';
           }
           
