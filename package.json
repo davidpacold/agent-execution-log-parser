@@ -2,6 +2,7 @@
 	"name": "agent-execution-log-parser",
 	"version": "1.0.3",
 	"description": "A web-based tool to parse and visualize Airia Agent execution logs",
+	"type": "module",
 	"private": true,
 	"scripts": {
 		"deploy": "wrangler deploy",

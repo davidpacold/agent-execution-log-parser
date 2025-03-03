@@ -231,9 +231,12 @@ const server = http.createServer((req, res) => {
     // Parse the log data
     const parsedData = parseLogData(sampleLogData);
     
-    // Debug the RouterStep data
-    const routerStep = parsedData.steps.find(s => s.type === 'RouterStep');
-    console.log("Router step details:", JSON.stringify(routerStep, null, 2));
+    // Debug all steps data
+    console.log("\n=== STEP DETAILS ===");
+    parsedData.steps.forEach((step, index) => {
+      console.log(`\n----- Step ${index + 1}: ${step.type} -----`);
+      console.log(JSON.stringify(step, null, 2));
+    });
     
     // Render the components
     const overviewHtml = renderOverview(parsedData.overview);

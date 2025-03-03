@@ -106,41 +106,45 @@ function renderStep(step, index) {
     "<div id=\"collapse" + index + "\" class=\"accordion-collapse collapse\">" +
     "<div class=\"accordion-body\">";
   
-  // Add common step fields
-  html += renderStepCommon(step);
+  // Start the table
+  let tableHtml = renderStepCommon(step);
   
   // Add input if present (for all step types)
-  html += renderStepInput(step);
+  tableHtml += renderStepInput(step);
   
   // Add type-specific content
   if (stepType === "InputStep") {
-    html += renderInputStep(step);
+    tableHtml += renderInputStep(step);
   } else if (stepType === "OutputStep") {
-    html += renderOutputStep(step);
+    tableHtml += renderOutputStep(step);
   } else if (stepType === "MemoryLoadStep" || stepType === "MemoryStoreStep") {
-    html += renderMemoryStep(step);
+    tableHtml += renderMemoryStep(step);
   } else if (stepType === "PythonStep") {
-    html += renderPythonStep(step);
+    tableHtml += renderPythonStep(step);
   } else if (stepType === "AIOperation") {
-    html += renderAIOperationStep(step);
+    tableHtml += renderAIOperationStep(step);
   } else if (stepType === "APIToolStep" || stepType === "WebAPIPluginStep") {
-    html += renderAPIToolStep(step);
+    tableHtml += renderAPIToolStep(step);
   } else if (stepType === "RouterStep") {
-    html += renderRouterStep(step);
+    tableHtml += renderRouterStep(step);
   }
   
   // Add output if present (for all step types)
   // Only add if not an InputStep (which already shows input) or OutputStep (which already shows output)
   if (stepType !== "InputStep" && stepType !== "OutputStep") {
-    html += renderStepOutput(step);
+    tableHtml += renderStepOutput(step);
   }
   
   // Add error if present
   if (step.error) {
-    html += "<tr><th>Error:</th><td class=\"text-danger\">" + step.error + "</td></tr>";
+    tableHtml += "<tr><th>Error:</th><td class=\"text-danger\">" + step.error + "</td></tr>";
   }
   
-  html += "</table>";
+  // Close the table
+  tableHtml += "</table>";
+  
+  // Add the table to the main HTML
+  html += tableHtml;
   
   // Handle DataSearch step specially (since it has a custom rendering outside the table)
   if (stepType === "DataSearch" && step.searchResults) {
