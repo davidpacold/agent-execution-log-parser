@@ -8,8 +8,6 @@ export default defineWorkersConfig({
       reporter: ['text', 'json', 'html'],
       exclude: ['**/node_modules/**', '**/test/**', '**/*.config.js']
     },
-    // Test environment setup
-    environment: 'miniflare',
     // Test timeout
     testTimeout: 10000,
     // Pool options for workers

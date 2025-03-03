@@ -167,7 +167,17 @@ dist
 .pnp.\*
 
 # wrangler project
-
 .dev.vars
 .wrangler/
+.cloudflare/
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+
+# Additional project specific ignores
+worker/
