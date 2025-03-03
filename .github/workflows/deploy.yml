@@ -67,7 +67,7 @@ jobs:
         run: |
           echo "Checking Wrangler configuration..."
           npx wrangler --version
-          npx wrangler config -j
+          echo "Wrangler configuration:"
           cat wrangler.toml
         
       - name: Deploy to Cloudflare Workers (Production)
@@ -123,7 +123,7 @@ jobs:
         run: |
           echo "Checking Wrangler configuration..."
           npx wrangler --version
-          npx wrangler config -j
+          echo "Wrangler configuration:"
           cat wrangler.toml
         
       - name: Extract branch name

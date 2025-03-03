@@ -6,7 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - GitHub Actions deployment workflow using direct Wrangler commands
-- API token validation in deployment workflow
+- API token validation using CLOUDFLARE_API_TOKEN secret
+- Removed deprecated Wrangler config command
 - Improved error handling in CI/CD pipeline
 
 ## [1.0.1] - 2025-03-03
