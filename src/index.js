@@ -117,13 +117,15 @@ export default {
     // Add timing information to the context for performance monitoring
     const startTime = Date.now();
     ctx.waitUntil(
-      new Promise(resolve => {
-        request.addEventListener('close', () => {
+      (async () => {
+        try {
+          // Record the completion time after request is processed
           const duration = Date.now() - startTime;
           console.log(`[${process.env.ENVIRONMENT || 'development'}] Request completed in ${duration}ms`);
-          resolve();
-        });
-      })
+        } catch (error) {
+          console.error('Error in timing function:', error);
+        }
+      })()
     );
     
     // Handle CORS preflight requests
